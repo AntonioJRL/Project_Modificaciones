@@ -13,12 +13,6 @@
                 </button>
             </xpath>
 
-            <!--Boton
-            Iniciar en Tarea Invisible cuando es tarea de obra-->
-            <xpath expr="//header/button[@name='action_timer_start']" position="attributes">
-                <attribute name="invisible">is_control_obra == True</attribute>
-            </xpath>
-
             <xpath expr="//sheet//field[@name='tag_ids']" position="after">
                 <field name="partida_relacionada" />
             </xpath>
@@ -493,32 +487,6 @@
             <p class="o_view_nocontent_smiling_face">
                 No se encontraron Tareas. ¡Creemos una!
             </p>
-        </field>
-    </record>
-
-    <!-- Archivo: c:\Users\Erick\Downloads\rev\project_modificaciones\views\project_task_views.xml -->
-    <record id="view_project_task_form_inherit_sale_line" model="ir.ui.view">
-        <field name="name">project.task.form.inherit.sale.line</field>
-        <field name="model">project.task</field>
-        <field name="inherit_id" ref="project.view_task_form2" />
-        <field name="arch" type="xml">
-            <!-- Insertamos el campo justo después del campo “Nombre” -->
-            <xpath expr="//field[@name='name']" position="after">
-                <field name="sale_line_id"
-                    string="Línea de venta"
-                    domain="[('order_id', '=', sale_order_id), ('is_service', '=', True)]"
-                    options="{'no_create': True}"
-                    help="Selecciona la línea de la orden de venta que corresponde a esta tarea."
-                    context="{'default_order_id': sale_order_id}" />
-            </xpath>
-            <!-- Botón opcional para abrir el wizard de enlace -->
-            <xpath expr="//header" position="inside">
-                <button name="action_link_sale_line"
-                    type="object"
-                    string="Vincular línea"
-                    class="oe_highlight"
-                    invisible="sale_line_id != False" />
-            </xpath>
         </field>
     </record>
 </odoo>

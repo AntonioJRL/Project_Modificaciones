@@ -237,6 +237,18 @@ class ProjectSubUpdate(models.Model):
                 raise ValidationError(
                     _("La hora de término debe ser posterior a la hora de inicio.")
                 )
+                raise ValidationError(
+                    _("La hora de término no puede ser igual a la hora de inicio.")
+                )
+
+    @api.constrains('hora_inicio', 'hora_termino')
+    def _check_dates_constraint(self):
+        for record in self:
+            if record.hora_inicio and record.hora_termino:
+                if record.hora_termino <= record.hora_inicio:
+                    raise ValidationError(
+                        _("La hora de término debe ser posterior a la hora de inicio.")
+                    )
 
     # Método opcional para revertir a borrador utilizando un button desde la vista
     def action_revert_avances_to_draft(self):
@@ -281,6 +293,7 @@ class ProjectSubUpdate(models.Model):
         res = super().write(vals)
         # Después de guardar, intenta crear la tarea PEND por si se acaban de rellenar los campos 'producto' o 'ct'.
         self._try_create_preliminary_task()
+
         return res
 
     def _try_create_preliminary_task(self):
@@ -904,8 +917,21 @@ class ProjectSubUpdate(models.Model):
                     weight = record.task_id.subtask_weight or 0.0
                     record.quant_total = record.task_id.total_pieces * \
                         (weight / 100.0)
+
+                # Caso Tarea Padre con Progreso Ponderado (Gestión del Remanente)
+                elif record.task_id.use_weighted_progress:
+                    # Sumar pesos de los hijos
+                    children_weight = sum(
+                        record.task_id.child_ids.mapped('subtask_weight'))
+                    # Calcular remanente (lo que toca gestionar directo en el padre)
+                    # Si children suman 75%, remain = 25%
+                    remaining_weight = max(0.0, 100.0 - children_weight)
+
+                    record.quant_total = record.task_id.total_pieces * \
+                        (remaining_weight / 100.0)
+
                 else:
-                    # Caso Normal
+                    # Caso Normal (Sin ponderación o tarea simple)
                     record.quant_total = record.task_id.total_pieces
             else:
                 record.quant_total = 0.0
@@ -1142,14 +1168,24 @@ class ProjectSubUpdate(models.Model):
                 continue
 
             if not u.id or not isinstance(u.id, int):
+                # Nuevo registro no guardado
                 if not u._origin.id or not isinstance(u._origin.id, int):
-                    progress = u.task_id.quant_progress + u.unit_progress
+                    # Si la tarea es PONDERADA y estamos escribiendo directo sobre ella:
+                    # El acumulado debe ser SOLO el acumulado DIRECTO previo + el actual.
+                    if u.task_id and u.task_id.use_weighted_progress:
+                        # Buscamos otros updates directos ya guardados
+                        direct_updates = u.env["project.sub.update"].search([
+                            ("task_id", "=", task_id)
+                        ]).mapped("unit_progress")
+                        progress = sum(direct_updates) + u.unit_progress
+                    else:
+                        # Comportamiento legacy/normal: Asume que task_id.quant_progress es la base correcta
+                        progress = u.task_id.quant_progress + u.unit_progress
                 else:
                     self_total = (
                         u.env["project.sub.update"]
                         .search(
                             [
-                                ("project_id", "=", project_id),
                                 ("task_id", "=", task_id),
                                 ("id", "<", u._origin.id),
                             ]
@@ -1162,7 +1198,6 @@ class ProjectSubUpdate(models.Model):
                     u.env["project.sub.update"]
                     .search(
                         [
-                            ("project_id", "=", project_id),
                             ("task_id", "=", task_id),
                             ("id", "<=", u.id),
                         ]

@@ -97,27 +97,6 @@ class Task(models.Model):
     )
     # ========== FIN CAMPOS DE ANALYTICS_EXTRA ==========
 
-    # ---------------------------------------------------------------------
-    # Sync task progress with linked Sale Order Line
-    # ---------------------------------------------------------------------
-    def write(self, vals):
-        """Override write to propagate task progress to the linked sale order line.
-        If the task has a `sale_line_id` (Many2one to `sale.order.line`), we update the
-        `qty_delivered` on that line based on the task's `quant_progress` (units completed).
-        This ensures that any change in task progress (or linking a line) is reflected
-        immediately on the sales order.
-        """
-        res = super(Task, self).write(vals)
-        return res
-
-    def action_link_sale_line(self):
-        """Placeholder method for the "Vincular línea" button.
-        Currently does nothing but returns True to avoid errors.
-        You can replace it with a proper wizard later.
-        """
-        self.ensure_one()
-        return True    # ========== FIN CAMPOS DE INTEGRACIÓN ALMACÉN ==========
-
     # ========== CAMPOS DE INTEGRACIÓN ALMACÉN ==========
     stock_move_ids = fields.One2many(
         'stock.move',
@@ -427,6 +406,8 @@ class Task(models.Model):
 
             # CASO 1: Tarea Padre Ponderada (Calcula en base a hijos)
             if u.use_weighted_progress:
+                # ESTRATEGIA MIXTA:
+                # 1. Sumar contribución de subtareas
                 weighted_pct = 0.0
                 for child in u.child_ids:
                     current_sub_progress = child.progress or 0
@@ -434,6 +415,24 @@ class Task(models.Model):
                         weighted_pct += (current_sub_progress /
                                          100.0) * child.subtask_weight
 
+                # 2. Sumar avance DIRECTO en la tarea padre (el "resto" del peso)
+                # Buscamos avances reportados directamente sobre ESTA tarea
+                # FIX: Remove project_id filter to avoid data inconsistency issues
+                direct_progress_units = sum(
+                    u.env["project.sub.update"]
+                    .search([("task_id", "=", u.id)])
+                    .mapped("unit_progress")
+                )
+
+                # Calcular cuánto representa ese avance directo del total de piezas
+                # Si total_pieces es 0, evitamos división por cero
+                if u.total_pieces > 0:
+                    direct_contribution_pct = (
+                        direct_progress_units / u.total_pieces) * 100.0
+                    # Sumamos al porcentaje ponderado global
+                    weighted_pct += direct_contribution_pct
+
+                # Capamos al 100%
                 weighted_pct = min(100.0, weighted_pct)
                 u.quant_progress = (weighted_pct / 100.0) * u.total_pieces
 
@@ -444,10 +443,10 @@ class Task(models.Model):
             # CASO 2: Subtarea / Tarea Normal (Calcula sumando sus avances)
             else:
                 # Aquí aplicamos tu lógica original: Suma pura de avances.
-                # NO forzamos el total si está 'Done', respetamos lo reportado (25/50).
+                # FIX: Remove project_id filter
                 progress = (
                     u.env["project.sub.update"]
-                    .search([("project_id", "=", u.project_id.id), ("task_id", "=", u.id)])
+                    .search([("task_id", "=", u.id)])
                     .mapped("unit_progress")
                 )
                 u.quant_progress = sum(progress)
@@ -479,11 +478,35 @@ class Task(models.Model):
 
             if u.use_weighted_progress:
                 total_weighted_progress = 0.0
+
+                # 1. Contribución de Hijos
                 for child in u.child_ids:
                     current_sub_progress = child.progress or 0
                     if current_sub_progress > 0:
                         total_weighted_progress += (current_sub_progress /
                                                     100.0) * child.subtask_weight
+
+                # 2. Contribución Directa (Proporcional al total de piezas)
+                # Usamos u.quant_progress que YA fue calculado en _units incluyendo lo directo?
+                # Cuidado: _units depende de _progress (cíclico parcial).
+                # Mejor recalculamos lo directo aquí para estar seguros y evitar dependencia circular directa si _units usara progress.
+                # En _units, quant_progress se calcula basado en (pct_hijos + pct_directo).
+                # Aquí, calculamos el porcentaje final.
+
+                # Recuperamos lo directo "crudo"
+                # FIX: Remove project_id filter
+                direct_progress_units = sum(
+                    u.env["project.sub.update"]
+                    .search([("task_id", "=", u.id)])
+                    .mapped("unit_progress")
+                )
+
+                if u.total_pieces > 0:
+                    direct_pct_contribution = (
+                        direct_progress_units / u.total_pieces) * 100.0
+                    # Asumimos que el "peso" de lo directo es implícitamente "lo que falte" o simplemente suma
+                    # Si subtask_weight suman 70%, y yo avanzo 30% del total directo, eso suma 30 puntos al global.
+                    total_weighted_progress += direct_pct_contribution
 
                 if total_weighted_progress > 99.9:
                     progress = 100.0
@@ -1498,8 +1521,10 @@ class Task(models.Model):
         for task in self:
             if task.use_weighted_progress and task.child_ids:
                 total_weight = sum(task.child_ids.mapped('subtask_weight'))
-                if abs(total_weight - 100.0) > 0.1:
+                # Se permite que la suma sea menor o igual a 100%
+                # El remanente lo gestiona la tarea padre directamente.
+                if total_weight > 100.1:
                     raise ValidationError(_(
-                        "La suma de los pesos de las subtareas debe ser 100%%. "
+                        "La suma de los pesos de las subtareas no puede exceder el 100%%. "
                         "Suma actual: %s%% en la tarea %s"
                     ) % (total_weight, task.name))
