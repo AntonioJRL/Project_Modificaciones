@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="res_partner_view_form_inherit" model="ir.ui.view">
+            <field name="name">res.partner.view.form</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_form" />
+            <field name="arch" type="xml">
+
+                <xpath expr="//field[@name='vat']" position="after">
+                    <field name="tipo_contacto" widget="radio" options="{'horizontal': true}" />
+                </xpath>
+
+                <xpath
+                    expr="//form/sheet/notebook/page[@name='accounting']/group/group[@name='electronic_invoicing']/field[@name='ubl_cii_format']"
+                    position="after">
+                    <separator string="CENTRO DE COSTO" />
+                    <field name="centro_costo" />
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

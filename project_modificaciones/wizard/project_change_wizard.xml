@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_project_change_wizard_form" model="ir.ui.view">
+        <field name="name">project.change.wizard.form</field>
+        <field name="model">project.change.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reasignar Proyecto">
+                <group>
+                    <div class="alert alert-info" role="alert" colspan="2">
+                        <i class="fa fa-info-circle" /> Esta acción reasignará las tareas
+                        seleccionadas a un nuevo proyecto destino. </div>
+                </group>
+
+                <group>
+                    <field name="opciones" widget="radio" options="{'horizontal': True}"
+                        help="Seleccione el tipo de reasignación que desea realizar.
+                    - Proyecto en Especifico: Seleccione el proyecto origen el cual sus tareas se reasignarán.
+                    - General: No hay proyecto origen, solo se reasignarán las tareas seleccionadas." />
+
+                    <field name="project_origen" options="{'no_create': True, 'no_open': True}"
+                        placeholder="Seleccione el proyecto origen." invisible="opciones == '2'" />
+
+                    <field name="task_ids" widget="many2many_tags"
+                        options="{'no_create': True}"
+                        placeholder="Seleccione las tareas a reasignar."
+                        domain="project_origen and [('project_id', '=', project_origen), ('state', 'not in', ['1_canceled'])] or [('state', 'not in', ['1_canceled'])]" />
+
+                    <field name="project_id" options="{'no_create': True, 'no_open': True}"
+                        placeholder="Seleccione el proyecto destino." />
+                </group>
+                <footer>
+                    <button name="action_change_project" string="Reasignar" type="object"
+                        class="btn-primary" />
+                    <button string="Cancelar" class="btn-secondary" special="cancel" />
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_project_change_wizard" model="ir.actions.act_window">
+        <field name="name">Reasignar Proyecto</field>
+        <field name="res_model">project.change.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="project.model_project_task" />
+        <field name="binding_view_types">list</field>
+    </record>
+</odoo>

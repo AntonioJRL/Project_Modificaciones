@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Template para el informe de servicios pendientes -->
+    <template id="report_pending_service_table">
+        <t t-foreach="lines" t-as="line">
+            <div>
+                <!-- Tabla inicial -->
+                <table border="1" cellpadding="5" cellspacing="0"
+                    style="width: 100%; font-size: 0.75rem;">
+                    <div
+                        style="font-size: 1rem; font-weight: bold; margin-top: 10px; margin-bottom: 10px;">
+                        <span>Descripción del Servicio: </span>
+                        <span t-field="line.descripcion_servicio" />
+                    </div>
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Orden</th>
+                            <th>Sup. </th>
+                            <th>Sup. Planta</th>
+                            <th>Disciplina</th>
+                            <th>Fecha</th>
+                            <th>Licencias</th>
+                            <th>OT</th>
+                            <th>Planta</th>
+                            <th>Estado</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <span t-field="line.name" />
+                            </td>
+                            <td>
+                                <span t-field="line.order_number" />
+                            </td>
+                            <td>
+                                <span t-field="line.supervisor_id.name" />
+                            </td>
+                            <td>
+                                <span t-field="line.supervisor_planta_id.name" />
+                            </td>
+                            <td>
+                                <span t-field="line.disciplina_id.name" />
+                            </td>
+                            <td>
+                                <span t-field="line.date" />
+                            </td>
+                            <td>
+                                <t t-foreach="line.license_ids" t-as="license">
+                                    <span t-field="license.name" />
+                                    <t t-if="not license_last">, </t>
+                                </t>
+                            </td>
+                            <td>
+                                <span t-field="line.ot_number" />
+                            </td>
+                            <td>
+                                <span t-field="line.planta" />
+                            </td>
+                            <td>
+                                <span t-field="line.state" />
+                            </td>
+                            <td>
+                                <span t-field="line.total" />
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <!-- Tabla de las líneas de servicio -->
+                <t t-if="line.service_line_ids">
+                    <table border="1" cellpadding="3" cellspacing="0"
+                        style="width: 100%; font-size: 0.75rem;">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Producto</th>
+                                <th>Cantidad</th>
+                                <th>P.U.</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-foreach="line.service_line_ids" t-as="service_line">
+                                <tr>
+                                    <td>
+                                        <span t-field="service_line.product_id.default_code"
+                                            t-if="service_line.product_id.default_code" />
+                                    </td>
+                                    <td>
+                                        <span t-field="service_line.product_id.name" />
+                                    </td>
+                                    <td>
+                                        <span t-field="service_line.quantity" />
+                                    </td>
+                                    <td>
+                                        <span t-field="service_line.price_unit" />
+                                    </td>
+                                    <td>
+                                        <span t-field="service_line.total" />
+                                    </td>
+                                </tr>
+                            </t>
+                        </tbody>
+                    </table>
+                </t>
+            </div>
+            <div style="margin-bottom: 10px;"></div>
+        </t>
+        <div style="font-size: 0.75rem;">
+            <strong>
+                <span>Total General</span>
+                <t t-esc="round(sum(lines.mapped('total')), 2)" />
+            </strong>
+        </div>
+    </template>
+    <!-- Template para la página principal del informe de servicios pendientes -->
+    <template id="report_pending_service_page">
+        <t t-call="web.html_container">
+            <t t-set="data_report_landscape" t-value="True" />
+            <t t-set="full_width" t-value="True" />
+            <div class="page">
+                <div class="oe_structure" />
+                <div class="row mt8">
+                    <div class="col-lg-12">
+                        <h2>
+                            <span>Servicios Pendientes</span>
+                        </h2>
+                    </div>
+                </div>
+                <t t-set='lines' t-value='docs' />
+                <t t-call="project_modificaciones.report_pending_service_table" />
+                <div class="oe_structure" />
+            </div>
+        </t>
+    </template>
+    <!-- Registro para el informe de servicios pendientes -->
+    <record id="pending_service_report" model="ir.actions.report">
+        <field name="name">Servicios Pendientes</field>
+        <field name="model">pending.service</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">project_modificaciones.report_pending_service_page</field>
+        <field name="report_file">report_pending_service_page</field>
+        <field name="binding_model_id" ref="model_pending_service" />
+        <field name="binding_type">report</field>
+    </record>
+</odoo>
