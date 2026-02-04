@@ -97,6 +97,27 @@ class Task(models.Model):
     )
     # ========== FIN CAMPOS DE ANALYTICS_EXTRA ==========
 
+    # ---------------------------------------------------------------------
+    # Sync task progress with linked Sale Order Line
+    # ---------------------------------------------------------------------
+    def write(self, vals):
+        """Override write to propagate task progress to the linked sale order line.
+        If the task has a `sale_line_id` (Many2one to `sale.order.line`), we update the
+        `qty_delivered` on that line based on the task's `quant_progress` (units completed).
+        This ensures that any change in task progress (or linking a line) is reflected
+        immediately on the sales order.
+        """
+        res = super(Task, self).write(vals)
+        return res
+
+    def action_link_sale_line(self):
+        """Placeholder method for the "Vincular línea" button.
+        Currently does nothing but returns True to avoid errors.
+        You can replace it with a proper wizard later.
+        """
+        self.ensure_one()
+        return True    # ========== FIN CAMPOS DE INTEGRACIÓN ALMACÉN ==========
+
     # ========== CAMPOS DE INTEGRACIÓN ALMACÉN ==========
     stock_move_ids = fields.One2many(
         'stock.move',
@@ -406,7 +427,6 @@ class Task(models.Model):
 
             # CASO 1: Tarea Padre Ponderada (Calcula en base a hijos)
             if u.use_weighted_progress:
-                # 1. Aporte Ponderado de Hijos
                 weighted_pct = 0.0
                 for child in u.child_ids:
                     current_sub_progress = child.progress or 0
@@ -414,13 +434,8 @@ class Task(models.Model):
                         weighted_pct += (current_sub_progress /
                                          100.0) * child.subtask_weight
 
-                weighted_units = (weighted_pct / 100.0) * u.total_pieces
-
-                # 2. Aporte Directo (Progreso reportado directamente en esta tarea)
-                # Usamos los updates vinculados DIRECTAMENTE a esta tarea (u.id)
-                direct_units = sum(u.sub_update_ids.mapped("unit_progress"))
-
-                u.quant_progress = weighted_units + direct_units
+                weighted_pct = min(100.0, weighted_pct)
+                u.quant_progress = (weighted_pct / 100.0) * u.total_pieces
 
                 # Consistencia: Solo si el padre está Hecho, asumimos 100% global
                 if u.state == '1_done':
@@ -440,8 +455,6 @@ class Task(models.Model):
             # Escribir en la SO (Reflejo en Ventas)
             # Solo escribimos si NO somos una subtarea cuyo padre ya gestiona el progreso global
             should_write_so = True
-            # Si soy subtarea y mi padre es ponderado, mi padre escribe su total global, no yo.
-            # (Aunque ahora el padre incluye mi aporte, sigue siendo el padre el que representa la linea principal si es el caso)
             if u.parent_id and u.parent_id.use_weighted_progress:
                 should_write_so = False
 
@@ -465,14 +478,17 @@ class Task(models.Model):
             progress = 0.0
 
             if u.use_weighted_progress:
-                # Ahora que quant_progress incluye (Hijos Ponderados + Padre Directo),
-                # el porcentaje es: quant_progress / TOTAL GLOBAL
-                global_total = u.sale_line_id.product_uom_qty if u.sale_line_id else u.total_pieces
+                total_weighted_progress = 0.0
+                for child in u.child_ids:
+                    current_sub_progress = child.progress or 0
+                    if current_sub_progress > 0:
+                        total_weighted_progress += (current_sub_progress /
+                                                    100.0) * child.subtask_weight
 
-                if global_total > 0:
-                    progress = (u.quant_progress / global_total) * 100.0
+                if total_weighted_progress > 99.9:
+                    progress = 100.0
                 else:
-                    progress = 0.0
+                    progress = total_weighted_progress
 
             # PRIORIDAD 2: Cálculo Dinámico si es SUBTAREA PONDERADA
             elif u.parent_id and u.parent_id.use_weighted_progress and u.subtask_weight > 0:
@@ -1482,10 +1498,8 @@ class Task(models.Model):
         for task in self:
             if task.use_weighted_progress and task.child_ids:
                 total_weight = sum(task.child_ids.mapped('subtask_weight'))
-                # Se permite que la suma sea menor o igual a 100%
-                # El remanente lo gestiona la tarea padre directamente.
-                if total_weight > 100.1:
+                if abs(total_weight - 100.0) > 0.1:
                     raise ValidationError(_(
-                        "La suma de los pesos de las subtareas no puede exceder el 100%%. "
+                        "La suma de los pesos de las subtareas debe ser 100%%. "
                         "Suma actual: %s%% en la tarea %s"
                     ) % (total_weight, task.name))

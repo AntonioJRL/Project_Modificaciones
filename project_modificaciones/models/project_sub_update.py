@@ -103,84 +103,47 @@ class ProjectSubUpdate(models.Model):
     @api.constrains('unit_progress', 'task_id')
     def _check_weighted_limit(self):
         for record in self:
-            # CASO 1: Subtarea actualizando (Ya existente)
-            if record.task_id.parent_id and record.task_id.parent_id.use_weighted_progress:
-                # Si quant_total es 0, no validamos o asumimos límite 0
-                if record.quant_total <= 0:
-                    continue
+            # Solo si tiene tarea padre y esta usa progreso ponderado
+            if not (record.task_id and record.task_id.parent_id and record.task_id.parent_id.use_weighted_progress):
+                continue
 
-                # Calcular el total acumulado REAL
-                siblings = self.env['project.sub.update'].search([
-                    ('task_id', '=', record.task_id.id),
-                    ('id', '!=', record.id)
-                ])
+            # Si quant_total es 0, no validamos o asumimos límite 0
+            if record.quant_total <= 0:
+                continue
 
-                current_total = sum(siblings.mapped('unit_progress'))
-                new_total = current_total + record.unit_progress
-                weight_limit = record.quant_total
+            # Calcular el total acumulado REAL (buscando en BD para asegurar integridad)
+            # Excluimos el record actual para sumarlo explícitamente y usar su valor más reciente en cache
+            siblings = self.env['project.sub.update'].search([
+                ('task_id', '=', record.task_id.id),
+                ('id', '!=', record.id)
+            ])
 
-                if new_total > (weight_limit + 0.0001):
-                    raise ValidationError(
-                        _(
-                            "⛔ LÍMITE EXCEDIDO EN PROGRESO PONDERADO (SUBTAREA)\n\n"
-                            "La tarea padre '%s' gestiona el avance por 'Peso Ponderado'.\n"
-                            "El peso asignado (%.2f%%) equivale a %.2f unidades.\n"
-                            "Total Acumulado (con este registro): %.2f\n"
-                            "Límite permitido: %.2f\n\n"
-                            "Por favor ajuste el avance para no exceder el límite."
-                        )
-                        % (
-                            record.task_id.parent_id.name,
-                            record.task_id.subtask_weight,
-                            record.quant_total,
-                            new_total,
-                            weight_limit
-                        )
+            # Sumar de manera segura
+            current_total = sum(siblings.mapped('unit_progress'))
+            new_total = current_total + record.unit_progress
+
+            # EL LIMITE ES QUANT_TOTAL (UNIDADES), NO EL PESO (%)
+            weight_limit = record.quant_total
+
+            # Tolerancia para flotantes
+            if new_total > (weight_limit + 0.0001):
+                raise ValidationError(
+                    _(
+                        "⛔ LÍMITE EXCEDIDO EN PROGRESO PONDERADO\n\n"
+                        "La tarea padre '%s' gestiona el avance por 'Peso Ponderado'.\n"
+                        "El peso asignado (%.2f%%) equivale a %.2f unidades.\n"
+                        "Total Acumulado (con este registro): %.2f\n"
+                        "Límite permitido: %.2f\n\n"
+                        "Por favor ajuste el avance para no exceder el límite."
                     )
-
-            # CASO 2: Tarea Padre actualizando directamente (NUEVO)
-            elif record.task_id.use_weighted_progress:
-                # Estamos actualizando directamente al padre.
-                # Con la nueva lógica, 'total_pieces' YA ES el remanente disponible
-                # (Free Weight Units), gracias al campo computado en project.task.
-
-                allowed_units = record.task_id.total_pieces
-
-                # Calcular total acumulado de updates DIRECTOS a esta tarea padre
-                direct_siblings = self.env['project.sub.update'].search([
-                    ('task_id', '=', record.task_id.id),
-                    ('id', '!=', record.id)
-                ])
-                current_direct_total = sum(
-                    direct_siblings.mapped('unit_progress'))
-                new_direct_total = current_direct_total + record.unit_progress
-
-                if new_direct_total > (allowed_units + 0.0001):
-                    # Recalculamos porcentajes solo para el mensaje de error
-                    base_qty = record.task_id.sale_line_id.product_uom_qty if record.task_id.sale_line_id else allowed_units
-                    if base_qty <= 0:
-                        base_qty = 1
-
-                    free_weight_pct = (allowed_units / base_qty) * 100.0
-                    consumed_weight_pct = 100.0 - free_weight_pct
-
-                    raise ValidationError(
-                        _(
-                            "⛔ LÍMITE EXCEDIDO EN PROGRESO PONDERADO (DIRECTO)\n\n"
-                            "Esta tarea gestiona el avance por 'Peso Ponderado'.\n"
-                            "Las subtareas ocupan un %.2f%% del peso total.\n"
-                            "Queda disponible un %.2f%% para avance directo, equivalente a %.2f unidades.\n\n"
-                            "Total Directo Acumulado (con este registro): %.2f\n"
-                            "Límite Directo Permitido: %.2f\n"
-                        )
-                        % (
-                            consumed_weight_pct,
-                            free_weight_pct,
-                            allowed_units,
-                            new_direct_total,
-                            allowed_units
-                        )
+                    % (
+                        record.task_id.parent_id.name,
+                        record.task_id.subtask_weight,
+                        record.quant_total,
+                        new_total,
+                        weight_limit
                     )
+                )
 
     # Método opcional para confirmar utilizando un button desde la vista
     def action_confirmado_avances(self):
