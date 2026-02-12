@@ -146,14 +146,21 @@ class PendingService(models.Model):
             'context': {'default_sale_order_id': sale_orders[0].id if sale_orders else False},
         }
 
+    @api.depends('service_line_ids.task_id')
     def _compute_task_count(self):
         for record in self:
-            # Buscamos tareas que en su nombre contengan el nombre de este servicio
-            # O mejor aún, podrías añadir un campo Many2one en project.task que apunte aquí
-            record.task_count = self.env['project.task'].search_count([
-                ('project_id', '=', record.supervisor_id.proyecto_supervisor.id),
-                ('name', 'ilike', record.name)
-            ])
+            # 1. Extraemos los IDs de las tareas vinculadas en las líneas
+            # Usamos .filtered para evitar valores nulos si alguna línea no tiene tarea
+            task_ids_in_lines = record.service_line_ids.mapped('task_id').ids
+
+            # 2. Definimos el dominio usando el campo relacional servicio_pendiente en project.task.
+            domain = [
+                '|',
+                ('servicio_pendiente', '=', record.id),
+                ('id', 'in', task_ids_in_lines)
+            ]
+            # 3. Contabilizamos
+            record.task_count = self.env['project.task'].search_count(domain)
 
     @api.depends()
     def _compute_sale_order_count(self):
@@ -216,6 +223,7 @@ class PendingService(models.Model):
                     'supervisor_cliente': record.supervisor_planta_id.id,
                     'partner_id': record.cliente_servicio.id,
                     'producto_relacionado': line.product_id.id,
+                    'servicio_pendiente': record.id,
                 })
 
                 # Link task to line persistently
@@ -240,24 +248,26 @@ class PendingService(models.Model):
     # Acción para el Smart Button
     def action_view_tasks(self):
         self.ensure_one()
-        tasks = self.env['project.task'].search(
-            [('project_id', '=', self.supervisor_id.proyecto_supervisor.id), ('name', 'ilike', self.name)])
-        if len(tasks) == 1:
-            return {
-                'type': 'ir.actions.act_window',
-                'name': _('Tarea del Servicio'),
-                'res_model': 'project.task',
-                'res_id': tasks.id,
-                'view_mode': 'form',
-                'target': 'current',
-            }
+        # Mismo dominio para que la vista coincida con el contador
+        task_ids_from_lines = self.service_line_ids.mapped('task_id').ids
+
+        domain = [
+            '|',
+            ('servicio_pendiente', '=', self.id),
+            ('id', 'in', task_ids_from_lines)
+        ]
+
         return {
             'type': 'ir.actions.act_window',
             'name': _('Tareas del Servicio'),
             'res_model': 'project.task',
             'view_mode': 'tree,form',
-            'domain': [('project_id', '=', self.supervisor_id.proyecto_supervisor.id), ('name', 'ilike', self.name)],
-            'context': {'default_project_id': self.supervisor_id.proyecto_supervisor.id},
+            'domain': domain,
+            # El contexto ayuda a que si creas una tarea desde aquí, se auto-vincule
+            'context': {
+                'default_servicio_pendiente': self.id,
+                'default_partner_id': self.cliente_servicio.id,
+            },
         }
 
     # Acción para el Smart Button del proyecto
@@ -403,6 +413,13 @@ class PendingService(models.Model):
         'project.sub.update',
         'pending_service_id',
         string="Avances Relacionado"
+    )
+
+    task_ids = fields.One2many(
+        'project.task',
+        'servicio_pendiente',
+        string="Tarea Relacionada",
+        help="Tarea relacionada con el pendiente.",
     )
 
 

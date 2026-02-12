@@ -8,24 +8,38 @@ _logger = logging.getLogger(__name__)
 
 
 class ProjectSubUpdate(models.Model):
+    """Modelo para gestionar avances físicos y operativos de tareas en proyectos.
+
+    Este modelo permite registrar el progreso de las tareas, incluyendo:
+    - Unidades completadas
+    - Horas trabajadas
+    - Costos asociados
+    - Integración con órdenes de venta y facturación
+    """
     _name = 'project.sub.update'
-    _description = 'Avances fisicos y operativos'
+    _description = 'Avances físicos y operativos'
     _order = 'date desc'
     _inherit = ['mail.thread', 'mail.activity.mixin']
 
-    # Integracion de Campos que vienen de Project Modificaciones (project sub update)
+    # ========== CAMPOS DE ESTADO Y FACTURACIÓN ==========
     state = fields.Selection([
         ('no_fact', 'No facturado'),
         ('fact', 'Facturado'),
         ('inc', 'Incobrable'),
-    ], string='Estado', copy=False, default='no_fact', tracking=True)
+    ],
+        string='Estado de Facturación',
+        copy=False,
+        default='no_fact',
+        tracking=True,
+        help="Estado de facturación del avance: No facturado, Facturado o Incobrable."
+    )
 
     incidencia = fields.Many2one(
         'sale.order.incidencia',
         string="Incidencia",
-        related='sale_order_id.incidencia'
+        related='sale_order_id.incidencia',
+        help="Incidencia asociada a la orden de venta relacionada."
     )
-    ####################################################################
 
     # Campo para el nombre que se mostrara en la lista de busqueda
     display_name = fields.Char(
@@ -56,19 +70,21 @@ class ProjectSubUpdate(models.Model):
 
         return self._search(domain + args, limit=limit, access_rights_uid=name_get_uid, order=order)
 
-    # Campo para manejo de los estados del avance.
+    # ========== ESTADO DEL AVANCE ==========
+    # Gestiona el flujo de estados del avance: Borrador → Confirmado → Asignado
     avances_state = fields.Selection(
         [
             ("draft", "Borrador"),
             ("confirmed", "Confirmado"),
             ("assigned", "Asignado"),
         ],
-        string="Estado",
+        string="Estado del Avance",
         copy=False,
         default="draft",
         tracking=True,
         compute="_compute_avances_estados",
         store=True,
+        help="Estado del flujo de trabajo del avance. Borrador: recién creado. Confirmado: validado manualmente. Asignado: vinculado a proyecto/tarea/venta."
     )
 
     @api.depends("sale_order_id", "project_id", "task_id")
@@ -100,52 +116,8 @@ class ProjectSubUpdate(models.Model):
                 else:
                     record.avances_state = "draft"
 
-    @api.constrains('unit_progress', 'task_id')
-    def _check_weighted_limit(self):
-        for record in self:
-            # Solo si tiene tarea padre y esta usa progreso ponderado
-            if not (record.task_id and record.task_id.parent_id and record.task_id.parent_id.use_weighted_progress):
-                continue
-
-            # Si quant_total es 0, no validamos o asumimos límite 0
-            if record.quant_total <= 0:
-                continue
-
-            # Calcular el total acumulado REAL (buscando en BD para asegurar integridad)
-            # Excluimos el record actual para sumarlo explícitamente y usar su valor más reciente en cache
-            siblings = self.env['project.sub.update'].search([
-                ('task_id', '=', record.task_id.id),
-                ('id', '!=', record.id)
-            ])
-
-            # Sumar de manera segura
-            current_total = sum(siblings.mapped('unit_progress'))
-            new_total = current_total + record.unit_progress
-
-            # EL LIMITE ES QUANT_TOTAL (UNIDADES), NO EL PESO (%)
-            weight_limit = record.quant_total
-
-            # Tolerancia para flotantes
-            if new_total > (weight_limit + 0.0001):
-                raise ValidationError(
-                    _(
-                        "⛔ LÍMITE EXCEDIDO EN PROGRESO PONDERADO\n\n"
-                        "La tarea padre '%s' gestiona el avance por 'Peso Ponderado'.\n"
-                        "El peso asignado (%.2f%%) equivale a %.2f unidades.\n"
-                        "Total Acumulado (con este registro): %.2f\n"
-                        "Límite permitido: %.2f\n\n"
-                        "Por favor ajuste el avance para no exceder el límite."
-                    )
-                    % (
-                        record.task_id.parent_id.name,
-                        record.task_id.subtask_weight,
-                        record.quant_total,
-                        new_total,
-                        weight_limit
-                    )
-                )
-
     # Método opcional para confirmar utilizando un button desde la vista
+
     def action_confirmado_avances(self):
         for record in self:
             if record.avances_state == "draft":
@@ -231,16 +203,21 @@ class ProjectSubUpdate(models.Model):
                 _("El avance de unidades no puede ser un valor negativo.")
             )
 
+        # === VALIDACION DEL RANGO DE HORAS REPORTADAS (MANUAL) ===
         # Validación de lógica de horas (Funciona para Datetime y Float)
         if self.hora_inicio and self.hora_termino:
             if self.hora_termino <= self.hora_inicio:
                 raise ValidationError(
                     _("La hora de término debe ser posterior a la hora de inicio.")
                 )
-                raise ValidationError(
-                    _("La hora de término no puede ser igual a la hora de inicio.")
-                )
+                # raise ValidationError(
+                #     _("La hora de término no puede ser igual a la hora de inicio.")
+                # )
 
+    # ==============================================================================================
+    #                          LOGICA DE VALIDACION DE HORAS (AUTOMATICA)
+    # ==============================================================================================
+    # Esta restricción se dispara automáticamente al guardar, duplicando la validación manual anterior para seguridad.
     @api.constrains('hora_inicio', 'hora_termino')
     def _check_dates_constraint(self):
         for record in self:
@@ -277,9 +254,10 @@ class ProjectSubUpdate(models.Model):
     def create(self, vals_list):
         now = fields.Datetime.context_timestamp(self, fields.Datetime.now())
         date_str = now.strftime("%y%m%d%H%M%S")
-        for vals in vals_list:
+        for i, vals in enumerate(vals_list):
             if vals.get("name", "Nuevo") == "Nuevo":
-                vals["name"] = f"{date_str}"  # vals["name"] = f"AV/{date_str}"
+                # Agregamos un consecutivo al final para diferenciar registros creados en el mismo batch
+                vals["name"] = f"{date_str}{i+1:02d}"
 
         records = super().create(vals_list)
         # Llama a la lógica de creación de tareas después de crear los registros
@@ -434,7 +412,8 @@ class ProjectSubUpdate(models.Model):
 
         """
         # 3. Migración (account.analytic.line) - Hojas de Horas
-        timesheets_to_migrate = self.env['account.analytic.line'].search([('task_id', '=', old_task_id)])
+        timesheets_to_migrate = self.env['account.analytic.line'].search(
+            [('task_id', '=', old_task_id)])
         if timesheets_to_migrate:
             # Necesitamos obtener el project_id de la nueva tarea para asignarlo también
             new_task = self.env['project.task'].browse(new_task_id)
@@ -502,7 +481,7 @@ class ProjectSubUpdate(models.Model):
         help="Indica si el avance puede ser transferido a un proyecto con orden de venta",
     )
 
-    @api.depends("avances_state", "is_avance_preliminar", "project_id")
+    @api.depends("avances_state", "is_avance_preliminar", "project_id", "project_id.name")
     def _compute_avances_transferible(self):
         for record in self:
             record.is_transferible = (
@@ -528,39 +507,36 @@ class ProjectSubUpdate(models.Model):
         "sale.order.line",
         string="Línea de Venta",
         related="task_id.sale_line_id",
-        store=True,
+        store=False,
+        readonly=True,
     )
 
     partida_linea = fields.Char(
         related="sale_order_line_id.partida", string="Partida")
 
-    ############################################################
-    # SECCION PRINCIPAL DEL FORMATO DEL AVANCE: DATOS INTERNOS #
-    ############################################################
+    # ========== RELACIONES PRINCIPALES: VENTA, PROYECTO Y TAREA ==========
 
-    # Campo que hacer referencia con la orden de venta relacionada al proyecto.
     sale_order_id = fields.Many2one(
         "sale.order",
-        string="Orden De Venta",
-        related="task_id.sale_order_id",  # project_id.reinvoiced_sale_order_id
-        help="Orden De Venta Relacionada Al Trabajo",
+        string="Orden de Venta",
+        related="task_id.sale_order_id",
         tracking=True,
+        help="Orden de venta a la cual está vinculado este avance."
     )
-    # Campo que hace referencia a las especialidades de la orden de venta.
     especialidad = fields.Many2many(
         "crm.tag",
         string="Especialidad",
         related="sale_order_id.tag_ids",
-        help="Especialidad de la Orden De Venta",
+        help="Especialidades/tags asociadas a la orden de venta.",
     )
 
-    # Campo para mostrar a que proyecto se encuentra enlazado el avance.
     project_id = fields.Many2one(
         "project.project",
         string="Proyecto",
         domain="[('is_proyecto_obra', '=', True)]",
-        help="Proyecto a cual el avance esta asignado.",
+        ondelete='set null',
         tracking=True,
+        help="Proyecto al cual está asignado este avance. Solo se muestran proyectos de obra.",
     )
 
     # Método para rellenar el campo project_id en base a la actualización.
@@ -624,7 +600,8 @@ class ProjectSubUpdate(models.Model):
     task_id = fields.Many2one(
         "project.task",
         string="Tarea",
-        help="Tarea Del Proyecto (Aqui Vera La Tarea En La Cual El Avance Estara Relacionado)",
+        ondelete='set null',
+        help="Tarea del proyecto a la cual está relacionado este avance.",
         tracking=True,
         domain="[('project_id', '=', project_id), ('state', 'not in', ['1_canceled']), ('approval_state', 'in',['draft','approved'])]",
     )
@@ -732,7 +709,7 @@ class ProjectSubUpdate(models.Model):
     )
 
     # Metodo para sacar el cliente de ct y asignarlo al campo cliente.
-    @api.depends("ct")
+    @api.depends("ct", "ct.cliente")
     def _compute_cliente(self):
         for record in self:
             if record.ct and record.ct.cliente and record.ct.cliente.exists():
@@ -884,63 +861,8 @@ class ProjectSubUpdate(models.Model):
         tracking=True,
     )
 
-    ############################################################
-    #                      AVANCES ACTUAL                      #
-    ############################################################
-    # Avance Actual
-    unit_progress = fields.Float(string="Avance de Unidades", default=0.00)
-    actual_progress_percentage = fields.Float(
-        compute="_actual_progress_percentage", string="Avance Porcentual", default=0.00
-    )
-    virtual_quant_progress = fields.Float(
-        string="Unidades Entregadas (virtual)",
-        compute="_virtual_quant_progress",
-        store=True,
-        default=0.0,
-    )
-    missing_quant = fields.Float(
-        string="Unidades Faltantes", compute="_missing_quant")
-
-    # Avance del Servicio
-    quant_total = fields.Float(
-        string="Unidades a Entregar",
-        compute="_compute_quant_total",
-        store=True
-    )
-
-    @api.depends("task_id", "task_id.total_pieces", "task_id.subtask_weight", "task_id.parent_id.use_weighted_progress")
-    def _compute_quant_total(self):
-        for record in self:
-            if record.task_id and record.task_id.total_pieces:
-                # Caso Subtarea con Peso Ponderado
-                if record.task_id.parent_id and record.task_id.parent_id.use_weighted_progress:
-                    weight = record.task_id.subtask_weight or 0.0
-                    record.quant_total = record.task_id.total_pieces * \
-                        (weight / 100.0)
-
-                # Caso Tarea Padre con Progreso Ponderado (Gestión del Remanente)
-                elif record.task_id.use_weighted_progress:
-                    # Sumar pesos de los hijos
-                    children_weight = sum(
-                        record.task_id.child_ids.mapped('subtask_weight'))
-                    # Calcular remanente (lo que toca gestionar directo en el padre)
-                    # Si children suman 75%, remain = 25%
-                    remaining_weight = max(0.0, 100.0 - children_weight)
-
-                    record.quant_total = record.task_id.total_pieces * \
-                        (remaining_weight / 100.0)
-
-                else:
-                    # Caso Normal (Sin ponderación o tarea simple)
-                    record.quant_total = record.task_id.total_pieces
-            else:
-                record.quant_total = 0.0
-
     sale_current = fields.Float(
-        string="Avance Del Subtotal", compute="_sale_current", store=True
-    )
-    virtual_total_progress = fields.Integer(
-        string="Progreso Total (virtual)", compute="_virtual_total_progress", default=0
+        string="Avance Del Subtotal", compute="_sale_current", store=False
     )
 
     # Campo para manejar el costo del avance antes de ser asignado a un proyecto.
@@ -987,7 +909,7 @@ class ProjectSubUpdate(models.Model):
     costo_avance_formateado = fields.Char(
         compute="_compute_costo_formateado",
         string="Costo Del Avance Formateado",
-        store=True,
+        store=False,
     )
 
     # Metodo para el formateado del campo costo avance
@@ -1019,13 +941,13 @@ class ProjectSubUpdate(models.Model):
         domain="[('state', '=', 'posted'), ('move_type', '=', 'out_invoice')]",
     )
     sale_total = fields.Float(
-        string="Subtotal De La Venta", compute="_sale_total", store=True
+        string="Subtotal De La Venta", compute="_sale_total", store=False
     )
     sale_actual = fields.Float(
-        string="Subtotal Entregado", compute="_sale_actual", store=True
+        string="Subtotal Entregado", compute="_sale_actual", store=False
     )
     sale_missing = fields.Float(
-        string="Subtotal Faltante", compute="_sale_missing", store=True
+        string="Subtotal Faltante", compute="_sale_missing", store=False
     )
 
     proj = fields.Many2one(related="update_id.project_id")
@@ -1038,30 +960,19 @@ class ProjectSubUpdate(models.Model):
         related="task_id.progress",
         string="Current Progress",
     )
-    quant_progress = fields.Float(
-        string="Unidades Entregadas", compute="_quant_progress", store=True, default=0.0
-    )
-    actual_progress = fields.Float(
-        compute="_actual_progress", string="Avance", default=0.00, store=True
-    )
-    total_progress = fields.Integer(
-        string="Progreso Total", compute="_total_progress", store=True, default=0
-    )
-    total_progress_percentage = fields.Float(
-        compute="_total_progress_percentage")
 
     # Text
     sale_current_text = fields.Char(
-        string="Avance Del subtotal (pesos)", compute="_sale_current_text", store=True
+        string="Avance Del subtotal (pesos)", compute="_sale_current_text", store=False
     )
     sale_actual_text = fields.Char(
-        string="Subtotal Entregado (pesos)", compute="_sale_actual_text", store=True
+        string="Subtotal Entregado (pesos)", compute="_sale_actual_text", store=False
     )
     sale_total_text = fields.Char(
-        string="Subtotal De La Venta (pesos)", compute="_sale_total_text", store=True
+        string="Subtotal De La Venta (pesos)", compute="_sale_total_text", store=False
     )
     sale_missing_text = fields.Char(
-        string="Subtotal Faltante (pesos)", compute="_sale_missing_text", store=True
+        string="Subtotal Faltante (pesos)", compute="_sale_missing_text", store=False
     )
 
     task_name = fields.Char(related="task_id.name",
@@ -1072,7 +983,7 @@ class ProjectSubUpdate(models.Model):
         related="update_id.status", string="Estado Tarea")
 
     invoiced = fields.Float(
-        string="Facturado", related="task_id.invoiced", store=True)
+        string="Facturado", related="task_id.invoiced", store=False)
     is_invoiced = fields.Boolean(
         string="¿Avance Facturado?",
         default=False,
@@ -1119,107 +1030,6 @@ class ProjectSubUpdate(models.Model):
             for i in tasks:
                 chosen = chosen + str(i) + " "
             return chosen.split()
-
-    @api.depends("unit_progress", "task_id")
-    def _quant_progress(self):
-        for u in self:
-            progress = u.task_id.quant_progress
-            u.quant_progress = progress
-
-    @api.depends("unit_progress", "task_id.total_pieces", "quant_total")
-    def _actual_progress(self):
-        for u in self:
-            if u.quant_total > 0:
-                progress = (u.unit_progress / u.quant_total) * 100
-            else:
-                progress = 0
-            u.actual_progress = progress
-
-    @api.depends("unit_progress", "task_id", "quant_total", "virtual_quant_progress")
-    def _total_progress(self):
-        for u in self:
-            if u.quant_total > 0:
-                progress = (u.virtual_quant_progress / u.quant_total) * 100
-            else:
-                progress = 0
-            u.total_progress = int(progress)
-
-    @api.depends("unit_progress", "task_id")
-    def _actual_progress_percentage(self):
-        for u in self:
-            u.actual_progress_percentage = u.actual_progress / 100
-
-    @api.depends("unit_progress", "task_id")
-    def _total_progress_percentage(self):
-        for u in self:
-            u.total_progress_percentage = u.virtual_total_progress / 100
-
-    @api.depends("unit_progress", "task_id")
-    def _virtual_quant_progress(self):
-        for u in self:
-            # Ensure we have valid integers for search to avoid NewId errors
-            project_id = u.project_id.id if isinstance(
-                u.project_id.id, int) else False
-            task_id = u.task_id.id if isinstance(u.task_id.id, int) else False
-
-            if not project_id or not task_id:
-                # If project or task are not yet saved (NewId), we assume no other saved advances exist
-                u.virtual_quant_progress = u.unit_progress
-                continue
-
-            if not u.id or not isinstance(u.id, int):
-                # Nuevo registro no guardado
-                if not u._origin.id or not isinstance(u._origin.id, int):
-                    # Si la tarea es PONDERADA y estamos escribiendo directo sobre ella:
-                    # El acumulado debe ser SOLO el acumulado DIRECTO previo + el actual.
-                    if u.task_id and u.task_id.use_weighted_progress:
-                        # Buscamos otros updates directos ya guardados
-                        direct_updates = u.env["project.sub.update"].search([
-                            ("task_id", "=", task_id)
-                        ]).mapped("unit_progress")
-                        progress = sum(direct_updates) + u.unit_progress
-                    else:
-                        # Comportamiento legacy/normal: Asume que task_id.quant_progress es la base correcta
-                        progress = u.task_id.quant_progress + u.unit_progress
-                else:
-                    self_total = (
-                        u.env["project.sub.update"]
-                        .search(
-                            [
-                                ("task_id", "=", task_id),
-                                ("id", "<", u._origin.id),
-                            ]
-                        )
-                        .mapped("unit_progress")
-                    )
-                    progress = sum(self_total) + u.unit_progress
-            else:
-                self_total = (
-                    u.env["project.sub.update"]
-                    .search(
-                        [
-                            ("task_id", "=", task_id),
-                            ("id", "<=", u.id),
-                        ]
-                    )
-                    .mapped("unit_progress")
-                )
-                progress = sum(self_total)
-            u.virtual_quant_progress = progress
-
-    @api.depends("unit_progress", "task_id", "quant_total", "virtual_quant_progress")
-    def _virtual_total_progress(self):
-        for u in self:
-            if u.quant_total > 0:
-                progress = (u.virtual_quant_progress / u.quant_total) * 100
-            else:
-                progress = 0
-            u.virtual_total_progress = int(progress)
-
-    @api.depends("unit_progress", "task_id", "quant_total", "virtual_quant_progress")
-    def _missing_quant(self):
-        for u in self:
-            u.missing_quant = u.quant_total - u.virtual_quant_progress
 
     def _get_price_for_calculation(self):
         """Este metodo ayuda para obtener el valor unitario del producto en diferentes entornos"""
@@ -1338,36 +1148,6 @@ class ProjectSubUpdate(models.Model):
         self.domain = domain
 
     # Este metodo de validación fue modificado.
-    @api.constrains("quant_progress", "task_id")
-    def _update_units(self):
-        for u in self:
-            if u.task_id and u.task_id.total_pieces > 0:
-                other_sub_updates = self.env["project.sub.update"].search(
-                    [
-                        ("task_id", "=", u.task_id.id),
-                        (
-                            "id",
-                            "!=",
-                            u.id,
-                        ),  # Excluye el registro actual para no doble-contar su valor
-                    ]
-                )
-                sum_of_other_advances = sum(
-                    other_sub_updates.mapped("unit_progress"))
-                # Calcular el nuevo progreso total acumulado para la tarea
-                new_total_task_progress = sum_of_other_advances + u.unit_progress
-                # Realizar la validación
-                if new_total_task_progress > u.task_id.total_pieces:
-                    raise ValidationError(
-                        "El progreso acumulado de la tarea sobrepasa el número de unidades pedidas."
-                    )
-
-    @api.constrains("unit_progress")
-    def _check_units(self):
-        for u in self:
-            if u.task_id:
-                if u.unit_progress < 0:
-                    raise ValidationError("Cantidad inválida de unidades")
 
     """
     @api.constrains("item_ids")
@@ -1528,6 +1308,281 @@ class ProjectSubUpdate(models.Model):
             self.responsible_id = False
             self.supervisorplanta = False
 
+    # ==============================================================================================
+    #                          LOGICA DE PROGRESO Y PONDERACION
+    # ==============================================================================================
+    # Esta sección agrupa los campos y métodos encargados de gestionar el avance de la tarea,
+    # incluyendo la lógica de "Progreso Ponderado" y validaciones de límites.
+    # ==============================================================================================
+
+    # --- CAMPOS DE PROGRESO ---
+
+    # Avance reportado en este registro
+    unit_progress = fields.Float(string="Avance de Unidades", default=0.00)
+
+    # Avance total esperado (Meta)
+    quant_total = fields.Float(
+        string="Unidades a Entregar",
+        compute="_compute_quant_total",
+        store=True
+    )
+
+    # Avance acumulado virtual (incluyendo este registro, antes de guardar)
+    virtual_quant_progress = fields.Float(
+        string="Unidades Entregadas (virtual)",
+        compute="_virtual_quant_progress",
+        store=False,  # CRITICAL: Must be False to avoid infinite recursion
+        default=0.0,
+    )
+
+    # Faltante para llegar a la meta
+    missing_quant = fields.Float(
+        string="Unidades Faltantes", compute="_missing_quant")
+
+    # Porcentajes de avance
+    actual_progress_percentage = fields.Float(
+        compute="_actual_progress_percentage", string="Avance Porcentual", default=0.00
+    )
+
+    # --- CAMPOS DE REPORTING / HISTORICO (Relacionados con la tarea padre) ---
+
+    quant_progress = fields.Float(
+        string="Unidades Entregadas",
+        related="task_id.quant_progress",
+        store=False,
+        readonly=True
+    )
+    actual_progress = fields.Float(
+        compute="_actual_progress", string="Avance", default=0.00, store=False
+    )
+
+    # Progreso TOTAL incluyendo lo virtual
+    virtual_total_progress = fields.Integer(
+        string="Progreso Total (virtual)", compute="_virtual_total_progress", default=0
+    )
+
+    total_progress = fields.Integer(
+        string="Progreso Total", compute="_total_progress", store=False, default=0
+    )
+    total_progress_percentage = fields.Float(
+        compute="_total_progress_percentage")
+
+    # --- MÉTODOS DE CÁLCULO DE LIMITES Y METAS ---
+
+    @api.depends("task_id", "task_id.total_pieces", "task_id.subtask_weight", "task_id.parent_id.use_weighted_progress")
+    def _compute_quant_total(self):
+        for record in self:
+            if record.task_id and record.task_id.total_pieces:
+                # Caso Subtarea con Peso Ponderado
+                if record.task_id.parent_id and record.task_id.parent_id.use_weighted_progress:
+                    # CORRECCION: El usuario requiere que la subtarea tenga como meta el 100% de las unidades del padre
+                    # independientemente de su peso (el peso solo afecta al % de avance del padre).
+                    record.quant_total = record.task_id.parent_id.total_pieces
+
+                # Caso Tarea Padre con Progreso Ponderado (Gestión del Remanente)
+                elif record.task_id.use_weighted_progress:
+                    # Sumar pesos de los hijos
+                    children_weight = sum(
+                        record.task_id.child_ids.mapped('subtask_weight'))
+                    # Calcular remanente (lo que toca gestionar directo en el padre)
+                    # Si children suman 75%, remain = 25%
+                    remaining_weight = max(0.0, 100.0 - children_weight)
+
+                    record.quant_total = record.task_id.total_pieces * \
+                        (remaining_weight / 100.0)
+
+                else:
+                    # Caso Normal (Sin ponderación o tarea simple)
+                    record.quant_total = record.task_id.total_pieces
+            else:
+                record.quant_total = 0.0
+
+    # --- MÉTODOS DE CÁLCULO DE PROGRESO ACUMULADO ---
+
+    @api.depends("unit_progress", "task_id")
+    def _virtual_quant_progress(self):
+        for u in self:
+            # Ensure we have valid integers for search to avoid NewId errors
+            project_id = u.project_id.id if isinstance(
+                u.project_id.id, int) else False
+            task_id = u.task_id.id if isinstance(u.task_id.id, int) else False
+
+            if not project_id or not task_id:
+                # If project or task are not yet saved (NewId), we assume no other saved advances exist
+                u.virtual_quant_progress = u.unit_progress
+                continue
+
+            if not u.id or not isinstance(u.id, int):
+                # Nuevo registro no guardado
+                if not u._origin.id or not isinstance(u._origin.id, int):
+                    # Si la tarea es PONDERADA y estamos escribiendo directo sobre ella:
+                    # El acumulado debe ser SOLO el acumulado DIRECTO previo + el actual.
+                    if u.task_id and u.task_id.use_weighted_progress:
+                        # Buscamos otros updates directos ya guardados
+                        direct_updates = u.env["project.sub.update"].search([
+                            ("task_id", "=", task_id)
+                        ]).mapped("unit_progress")
+                        progress = sum(direct_updates) + u.unit_progress
+                    else:
+                        # Comportamiento legacy/normal: Asume que task_id.quant_progress es la base correcta
+                        progress = u.task_id.quant_progress + u.unit_progress
+                else:
+                    self_total = (
+                        u.env["project.sub.update"]
+                        .search(
+                            [
+                                ("task_id", "=", task_id),
+                                ("id", "<", u._origin.id),
+                            ]
+                        )
+                        .mapped("unit_progress")
+                    )
+                    progress = sum(self_total) + u.unit_progress
+            else:
+                self_total = (
+                    u.env["project.sub.update"]
+                    .search(
+                        [
+                            ("task_id", "=", task_id),
+                            ("id", "<=", u.id),
+                        ]
+                    )
+                    .mapped("unit_progress")
+                )
+                progress = sum(self_total)
+            u.virtual_quant_progress = progress
+
+    # @api.depends("unit_progress", "task_id")
+    # def _quant_progress(self):
+    #     for u in self:
+    #         progress = u.task_id.quant_progress
+    #         u.quant_progress = progress
+
+    @api.depends("unit_progress", "task_id.total_pieces", "quant_total")
+    def _actual_progress(self):
+        for u in self:
+            if u.quant_total > 0:
+                progress = (u.unit_progress / u.quant_total) * 100
+            else:
+                progress = 0
+            u.actual_progress = progress
+
+    @api.depends("unit_progress", "task_id", "quant_total", "virtual_quant_progress")
+    def _total_progress(self):
+        for u in self:
+            if u.quant_total > 0:
+                progress = (u.virtual_quant_progress / u.quant_total) * 100
+            else:
+                progress = 0
+            u.total_progress = int(progress)
+
+    @api.depends("unit_progress", "task_id")
+    def _actual_progress_percentage(self):
+        for u in self:
+            u.actual_progress_percentage = u.actual_progress / 100
+
+    @api.depends("unit_progress", "task_id")
+    def _total_progress_percentage(self):
+        for u in self:
+            u.total_progress_percentage = u.virtual_total_progress / 100
+
+    @api.depends("unit_progress", "task_id", "quant_total", "virtual_quant_progress")
+    def _virtual_total_progress(self):
+        for u in self:
+            if u.quant_total > 0:
+                progress = (u.virtual_quant_progress / u.quant_total) * 100
+            else:
+                progress = 0
+            u.virtual_total_progress = int(progress)
+
+    @api.depends("unit_progress", "task_id", "quant_total", "virtual_quant_progress")
+    def _missing_quant(self):
+        for u in self:
+            u.missing_quant = u.quant_total - u.virtual_quant_progress
+
+    # --- VALIDACIONES Y CONSTRAINS ---
+
+    @api.constrains('unit_progress', 'task_id')
+    def _check_weighted_limit(self):
+        for record in self:
+            # Solo si tiene tarea padre y esta usa progreso ponderado
+            if not (record.task_id and record.task_id.parent_id and record.task_id.parent_id.use_weighted_progress):
+                continue
+
+            # Si quant_total es 0, no validamos o asumimos límite 0
+            if record.quant_total <= 0:
+                continue
+
+            # Calcular el total acumulado REAL (buscando en BD para asegurar integridad)
+            # Excluimos el record actual para sumarlo explícitamente y usar su valor más reciente en cache
+            siblings = self.env['project.sub.update'].search([
+                ('task_id', '=', record.task_id.id),
+                ('id', '!=', record.id)
+            ])
+
+            # Sumar de manera segura
+            current_total = sum(siblings.mapped('unit_progress'))
+            new_total = current_total + record.unit_progress
+
+            # EL LIMITE ES QUANT_TOTAL (UNIDADES), QUE AHORA ES EL TOTAL DE PIEZAS
+            weight_limit = record.quant_total
+
+            # Tolerancia para flotantes
+            if new_total > (weight_limit + 0.0001):
+                raise ValidationError(
+                    _(
+                        "⛔ LÍMITE EXCEDIDO EN SUBTAREA\n\n"
+                        "La tarea padre '%s' tiene un total de %.2f unidades.\n"
+                        "Aunque esta subtarea tiene un peso de %.2f%%, debes reportar sobre el total de unidades (%.2f).\n"
+                        "Total Acumulado (con este registro): %.2f\n"
+                        "Límite permitido: %.2f\n\n"
+                        "Por favor ajuste el avance para no exceder el límite."
+                    )
+                    % (
+                        record.task_id.parent_id.name,
+                        record.task_id.parent_id.total_pieces,
+                        record.task_id.subtask_weight,
+                        record.quant_total,
+                        new_total,
+                        weight_limit
+                    )
+                )
+
+    @api.constrains("quant_progress", "task_id")
+    def _update_units(self):
+        for u in self:
+            if u.task_id and u.task_id.total_pieces > 0:
+                other_sub_updates = self.env["project.sub.update"].search(
+                    [
+                        ("task_id", "=", u.task_id.id),
+                        (
+                            "id",
+                            "!=",
+                            u.id,
+                        ),  # Excluye el registro actual para no doble-contar su valor
+                    ]
+                )
+                sum_of_other_advances = sum(
+                    other_sub_updates.mapped("unit_progress"))
+                # Calcular el nuevo progreso total acumulado para la tarea
+                new_total_task_progress = sum_of_other_advances + u.unit_progress
+                # Realizar la validación
+                if new_total_task_progress > u.task_id.total_pieces:
+                    raise ValidationError(
+                        "El progreso acumulado de la tarea sobrepasa el número de unidades pedidas."
+                    )
+
+    @api.constrains("unit_progress")
+    def _check_units(self):
+        for u in self:
+            if u.task_id:
+                if u.unit_progress < 0:
+                    raise ValidationError("Cantidad inválida de unidades")
+
+    # ==============================================================================================
+    #                          FIN LOGICA DE PROGRESO Y PONDERACION
+    # ==============================================================================================
+
     # -------------------------------------------------------------------------
     # CAMPOS LEGACY DEL MODELO ORIGINAL (PROJECT_SUB_UPDATE)
     # Se mantienen al final para evitar errores de campos faltantes en base de datos.
@@ -1550,10 +1605,37 @@ class ProjectSubUpdate(models.Model):
 
     # Mantenemos este campo para retrocompatibilidad, aunque B usa 'especialidad_trabajo'
     disciplina = fields.Many2one(
-        string="Especialidad", related='task_id.disc', store=True)
+        string="Especialidad", related='task_id.disc', store=False)
 
     # Campo legacy de area (texto) por si había datos viejos, aunque B usa 'planta' y 'area_equipo'
     area = fields.Char(string='Area', store=True)
 
     # Campo legacy de licencias (texto) por si había datos viejos, B usa el Many2one 'licencia'
     numlic = fields.Char(string='#Bitacora/Lic.', store=True)
+
+    # 1. Campo computado para contar (y controlar visibilidad del botón)
+    pending_service_count = fields.Integer(
+        string="Contador Pendientes",
+        compute="_compute_pending_service_count"
+    )
+
+    @api.depends("pending_service_id")
+    def _compute_pending_service_count(self):
+        for record in self:
+            # Si hay un ID relacionado es 1, si no es 0
+            record.pending_service_count = 1 if record.pending_service_id else 0
+
+    # 2. Acción para abrir el Servicio Pendiente Origen
+    def action_view_pending_service(self):
+        self.ensure_one()
+        if not self.pending_service_id:
+            return
+
+        return {
+            "name": _("Servicio Pendiente Origen"),
+            "type": "ir.actions.act_window",
+            "res_model": "pending.service",
+            "view_mode": "form",
+            "res_id": self.pending_service_id.id,
+            "target": "current",
+        }

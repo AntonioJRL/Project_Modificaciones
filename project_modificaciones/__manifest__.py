@@ -1,8 +1,8 @@
 {
     'name': 'Modificaciones de Project',
-    'version': '17.1.3',
+    'version': '17.1.2',
     'author': 'Mauricio, Antonio J.',
-    'depends': ['base', 'sale', 'hr', 'project', 'sale_project', 'purchase', 'hr_expense', 'sale_purchase', 'hr_timesheet', 'employee_purchase_requisition', 'stock', 'attendance_regularization'],
+    'depends': ['base', 'sale', 'hr', 'project', 'sale_project', 'purchase', 'hr_expense', 'sale_purchase', 'hr_timesheet', 'employee_purchase_requisition', 'stock', 'web', 'attendance_regularization'],
     'license': 'AGPL-3',
     'data': [
         # 1. Security (Groups first, then Access Rights, then Rules)
@@ -20,13 +20,14 @@
         "views/res_partner_views.xml",
         "views/control_centro_trabajo_views.xml",
         "views/control_planta_views.xml",
+        "views/project_profitability_report_views.xml",
 
         # 3.1 Wizards (Must be before views that reference them via actions)
         "views/wizard_rechazado_task_views.xml",
         "views/asignar_avances_project_wizard_views.xml",
         "wizard/pending_service_wizard.xml",
-        "wizard/project_change_wizard.xml",
         "wizard/project_reclassify_wizard_views.xml",
+        "wizard/project_change_wizard.xml",
         "wizard/project_sub_update_reclassify_wizard_views.xml",
 
         # 4. Views (Main Models & Actions)
@@ -46,7 +47,6 @@
         "views/sale_order_line_views.xml",
         "views/dashboard_sale_order_views.xml",
         "views/dashboard_task_views.xml",
-        "views/project_profitability_report_views.xml",
         "views/hr_employee_views.xml",
 
         # 6. Reports
@@ -57,10 +57,13 @@
     ],
     "assets": {
         "web.assets_backend": [
-            "project_modificaciones/static/src/css/style.css",
-            "project_modificaciones/static/src/js/dashboard_action.js",
+            'project_modificaciones/static/src/css/style.css',
+            'project_modificaciones/static/src/scss/project_profitability.scss',
+            'project_modificaciones/static/src/fields/one2manysearch/one2manysearch.js',
+            'project_modificaciones/static/src/fields/one2manysearch/one2manysearch_template.xml',
         ],
     },
+
     'category': 'Technical',
     'license': 'AGPL-3',
     'installable': True,

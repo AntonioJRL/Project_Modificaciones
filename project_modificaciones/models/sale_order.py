@@ -1,4 +1,5 @@
 from odoo import fields, models, api, _
+from odoo.osv import expression
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -116,6 +117,44 @@ class SaleOrder(models.Model):
         compute="_compute_project_ids",
         store=True,   # ← OBLIGATORIO en Odoo 17
     )
+
+    subtask_count = fields.Integer(
+        compute='_compute_task_counts', string='Subtask Count')
+    parent_task_count = fields.Integer(
+        compute='_compute_task_counts', string='Parent Task Count')
+
+    @api.depends('tasks_ids')
+    def _compute_task_counts(self):
+        for order in self:
+            all_tasks = order.tasks_ids
+            order.subtask_count = len(
+                all_tasks.filtered(lambda t: t.parent_id))
+            order.parent_task_count = len(
+                all_tasks.filtered(lambda t: not t.parent_id))
+
+    def action_view_task(self):
+        action = super().action_view_task()
+        # Agregar filtro de solo padres
+        if action.get('domain'):
+            # Si ya es una lista, agregamos.
+            # Odoo domain standard es [('sale_order_id', '=', id)]
+            action['domain'] = expression.AND(
+                [action['domain'], [('parent_id', '=', False)]])
+        else:
+            action['domain'] = [
+                ('sale_order_id', '=', self.id), ('parent_id', '=', False)]
+        return action
+
+    def action_view_subtask(self):
+        self.ensure_one()
+        action = self.env['ir.actions.act_window']._for_xml_id(
+            'project.action_view_task')
+        action['name'] = _('Subtareas')
+        # Filtro de solo hijos
+        action['domain'] = [('sale_order_id', '=', self.id),
+                            ('parent_id', '!=', False)]
+        action['context'] = {'default_sale_order_id': self.id}
+        return action
 
     # Método que extiende la confirmación de la orden de venta.
     def _action_confirm(self):

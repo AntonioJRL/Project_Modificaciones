@@ -72,6 +72,7 @@
                         <field name="progress" widget="progressbar" />
                         <field name="quant_progress" />
                         <field name="is_complete" string="¿Tarea terminada?" />
+                        <field name="servicio_pendiente" widget="many2many_tags" />
                     </group>
                     <group>
                         <field name="sale_order_id" string="Venta" />

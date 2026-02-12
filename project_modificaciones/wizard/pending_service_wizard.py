@@ -62,6 +62,7 @@ class PendingServiceWizard(models.TransientModel):
 
         count_created = 0
 
+        vals_list = []
         # 2. Iterar sobre las líneas del WIZARD
         for w_line in self.wizard_line_ids:
             # Solo procesar si la cantidad a reportar es mayor a 0
@@ -74,9 +75,6 @@ class PendingServiceWizard(models.TransientModel):
                     w_line.quantity_to_report, w_line.product_id.name, w_line.quantity_available))
 
             # Verificar duplicados en ese update (usando la cantidad del reporte)
-            # Nota: Si mandan 2 avances parciales de la misma tarea el mismo día con misma cantidad, esto lo bloquearía.
-            # Quizás deberíamos relajar esto o validar mejor.
-            # Por ahora mantenemos la lógica pero con quantity_to_report.
             domain_exist = [
                 ('update_id', '=', update.id),
                 ('task_id', '=', w_line.task_id.id),
@@ -102,8 +100,11 @@ class PendingServiceWizard(models.TransientModel):
                 'avances_state': 'draft',
                 'notas': f"Generado desde {service.name}",
             }
-            self.env['project.sub.update'].create(vals)
-            count_created += 1
+            vals_list.append(vals)
+
+        if vals_list:
+            self.env['project.sub.update'].create(vals_list)
+            count_created = len(vals_list)
 
         if count_created == 0:
             raise UserError(

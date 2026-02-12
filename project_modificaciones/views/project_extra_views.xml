@@ -10,6 +10,20 @@
                 <field name="team_id" />
             </xpath>
             <xpath expr="//sheet//div" position="inside">
+                <!-- Intentar ocultar el botón estándar de Ventas (si existe con este nombre) -->
+                <!-- <xpath expr="//button[@name='action_view_so']" position="attributes">
+                    <attribute name="invisible">1</attribute>
+                </xpath> -->
+
+                <!-- Nuevo Smart Button que consolida Venta Directa + Ventas de Tareas -->
+                <button class="oe_stat_button" type="object"
+                    name="action_view_related_sale_orders"
+                    icon="fa-dollar"
+                    invisible="related_sale_orders_count == 0">
+                    <field name="related_sale_orders_count" widget="statinfo"
+                        string="Órdenes de Ventas" />
+                </button>
+
                 <button class="oe_stat_button" type="object" name="action_view_avances"
                     icon="fa-file-text" invisible="not sub_update_ids">
                     <field name="sub_update_ids" widget="statinfo" string="Avances" />
@@ -132,6 +146,7 @@
             'default_is_proyecto_obra': True,
             'default_allow_billable': True,
             'default_privacy_visibility': 'employees',
+            'default_use_documents': False,
             }" />
         <field name="view_id" ref="view_project_kanban_control_obra" />
         <field name="groups_id" eval="[(4, ref('project.group_project_stages'))]" />

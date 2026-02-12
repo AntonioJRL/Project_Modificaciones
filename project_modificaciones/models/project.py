@@ -76,6 +76,12 @@ class Project(models.Model):
         # Aquí permitimos mantener la orden original.
         pass
 
+    @api.onchange('partner_id')
+    def _onchange_partner_id_set_analytic(self):
+        """Asigna automáticamente el centro de costo del cliente al proyecto."""
+        if self.partner_id and self.partner_id.centro_costo:
+            self.analytic_account_id = self.partner_id.centro_costo
+
     # -------------------------------------------------------------------------
     # RELACIÓN CON AVANCES (Project Sub Update / Creacion Avances)
     # -------------------------------------------------------------------------
@@ -102,7 +108,7 @@ class Project(models.Model):
     # MÉTODOS COMPUTADOS (Lógica mejorada con protección NewId)
     # -------------------------------------------------------------------------
 
-    @api.depends('sale_line_id.qty_invoiced')
+    @api.depends('sale_line_id.qty_invoiced', 'task_ids.invoiced')
     def _invoiced(self):
         for u in self:
             # Solo realizar la búsqueda si el proyecto ya tiene un ID persistente
@@ -113,7 +119,7 @@ class Project(models.Model):
             else:
                 u.invoiced = 0.0  # Valor por defecto para registros nuevos
 
-    @api.depends('sub_update_ids', 'sub_update_ids.unit_progress', 'sub_update_ids.task_id')
+    @api.depends('sub_update_ids', 'sub_update_ids.unit_progress', 'update_ids.sale_current')
     def _sale_actual(self):
         for u in self:
             # Solo realizar la búsqueda si el proyecto ya tiene un ID persistente
@@ -125,7 +131,7 @@ class Project(models.Model):
             else:
                 u.sale_actual = 0.0  # Valor por defecto para registros nuevos
 
-    @api.depends('sub_update_ids', 'sub_update_ids.unit_progress', 'sub_update_ids.task_id')
+    @api.depends('task_ids.price_subtotal')
     def _sale_total(self):
         for u in self:
             # Solo realizar la búsqueda si el proyecto ya tiene un ID persistente
@@ -176,7 +182,58 @@ class Project(models.Model):
             u.sale_missing_text = '$' + sale
 
     # -------------------------------------------------------------------------
-    # ACCIONES Y CREACIÓN (Lógica nueva)
+    # ACCIONES Y CREACIÓN (SMART BUTTON ÓRDENES DE VENTA)
+    # -------------------------------------------------------------------------
+
+    # Nuevo campo para contar órdenes de venta relacionadas (Directas + Tareas)
+    related_sale_orders_count = fields.Integer(
+        compute='_compute_related_sale_orders_count',
+        string="Órdenes de Venta Relacionadas"
+    )
+
+    def _get_all_related_sale_orders(self):
+        self.ensure_one()
+        orders = self.env['sale.order']
+        # 1. Orden directa del proyecto
+        if self.sale_order_id:
+            orders |= self.sale_order_id
+
+        # 2. Órdenes de las tareas
+        # Buscamos tareas que tengan sale_order_id
+        tasks_with_so = self.task_ids.filtered(lambda t: t.sale_order_id)
+        if tasks_with_so:
+            orders |= tasks_with_so.mapped('sale_order_id')
+
+        return orders
+
+    @api.depends('sale_order_id', 'task_ids.sale_order_id')
+    def _compute_related_sale_orders_count(self):
+        for project in self:
+            project.related_sale_orders_count = len(
+                project._get_all_related_sale_orders())
+
+    def action_view_related_sale_orders(self):
+        self.ensure_one()
+        orders = self._get_all_related_sale_orders()
+
+        result = {
+            'name': _("Órdenes de Venta Relacionadas"),
+            'type': 'ir.actions.act_window',
+            'res_model': 'sale.order',
+            'context': {'create': False},
+        }
+
+        if len(orders) == 1:
+            result['view_mode'] = 'form'
+            result['res_id'] = orders.id
+        else:
+            result['view_mode'] = 'tree,form'
+            result['domain'] = [('id', 'in', orders.ids)]
+
+        return result
+
+    # -------------------------------------------------------------------------
+    # FIN ACCIONES Y CREACIÓN (SMART BUTTON ÓRDENES DE VENTA)
     # -------------------------------------------------------------------------
 
     def action_view_avances(self):
@@ -208,3 +265,18 @@ class Project(models.Model):
                     project.type_ids = [(6, 0, stages.ids)]
 
         return projects
+
+    def action_open_profitability_dashboard(self):
+        self.ensure_one()
+        wizard = self.env['project.profitability.report'].create({
+            'project_ids': [(6, 0, [self.id])],
+            'filter_type': 'all'
+        })
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Rentabilidad Avanzada'),
+            'res_model': 'project.profitability.report',
+            'res_id': wizard.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }

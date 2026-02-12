@@ -5,7 +5,6 @@
         <field name="name">Tablero de Rentabilidad de Proyecto/s</field>
         <field name="res_model">project.profitability.report</field>
         <field name="view_mode">form</field>
-        <field name="target">new</field>
     </record>
 
     <!-- FORM VIEW -->
@@ -13,86 +12,67 @@
         <field name="name">project.profitability.report.form</field>
         <field name="model">project.profitability.report</field>
         <field name="arch" type="xml">
-            <form string="Rentabilidad del Proyecto">
+            <form string="Rentabilidad del Proyecto" create="false" delete="false">
                 <header>
                     <button name="action_recalculate" string="Recalcular" type="object"
-                        class="btn-primary" icon="fa-refresh" />
+                        class="btn-primary" icon="fa-refresh"
+                        help="Permite la actualización de los valores del tablero." />
                 </header>
-                <sheet>
+                <sheet class="w-100 mw-100">
                     <group>
                         <group>
-                            <field name="project_id" options="{'no_create': True}" />
+                            <field name="ubicacion_ids" widget="many2many_tags"
+                                options="{'no_create': True}" />
+                            <field name="project_ids" widget="many2many_tags"
+                                options="{'no_create': True}"
+                                domain="[('is_proyecto_obra', '=', True)]" /> <!-- + ([('ubicacion',
+                            'in', ubicacion_ids)] if ubicacion_ids else [])" -->
                             <field name="currency_id" invisible="1" />
                         </group>
                         <group>
+                            <field name="include_archived" widget="boolean_toggle" />
+                        </group>
+                    </group>
+                    <group string="Opciones de Filtrado">
+                        <!--FILTRADO
+                        POR TAREAS-->
+                        <group>
                             <field name="filter_type" widget="radio" options="{'horizontal': true}" />
+                        </group>
+                        <group>
+                            <field name="task_ids" widget="many2many_tags"
+                                options="{'no_create': True}" invisible="filter_type != 'filter'"
+                                domain="[('project_id', 'in', project_ids)] if project_ids else []" />
                             <field name="task_state_filter" invisible="filter_type == 'filter'"
                                 widget="radio" options="{'horizontal': true}" />
                         </group>
                     </group>
-                    <group invisible="filter_type != 'filter'">
-                        <field name="task_ids" widget="many2many_tags" options="{'no_create': True}" />
+
+                    <group>
+                        <!--POR
+                        PERIODO-->
+                        <group>
+                            <field name="date_filter_type" widget="radio"
+                                options="{'horizontal': true}" />
+
+                        </group>
+                        <group invisible="date_filter_type == 'none'">
+                            <field name="date_from" readonly="date_filter_type != 'custom'"
+                                force_save="1" />
+                            <field name="date_to" readonly="date_filter_type != 'custom'"
+                                force_save="1" />
+                        </group>
+
                     </group>
+
+                    <group string="Graficos">
+                        <field name="chart_type" widget="radio" options="{'horizontal': true}" />
+                    </group>
+
 
                     <div class="o_horizontal_separator text-uppercase fw-bold mt-4 mb-3"
                         style="color: #495057; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">
                         <i class="fa fa-tachometer me-2" />Resumen Ejecutivo </div>
-
-                    <style>
-                        .kpi-container {
-                        display: flex;
-                        gap: 20px;
-                        margin-bottom: 30px;
-                        flex-wrap: wrap;
-                        }
-                        .kpi-box {
-                        flex: 1;
-                        min-width: 200px;
-                        background: white;
-                        border-radius: 12px;
-                        padding: 20px;
-                        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-                        border: 1px solid rgba(0,0,0,0.05);
-                        transition: transform 0.2s, box-shadow 0.2s;
-                        display: flex;
-                        align-items: center;
-                        }
-                        .kpi-box:hover {
-                        transform: translateY(-2px);
-                        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-                        }
-                        .kpi-icon-wrapper {
-                        width: 50px;
-                        height: 50px;
-                        border-radius: 12px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        margin-right: 15px;
-                        font-size: 24px;
-                        }
-                        .kpi-content {
-                        flex: 1;
-                        }
-                        .kpi-value {
-                        font-size: 1.8rem;
-                        font-weight: 700;
-                        color: #212529;
-                        line-height: 1.2;
-                        }
-                        .kpi-label {
-                        color: #6c757d;
-                        font-size: 0.85rem;
-                        font-weight: 600;
-                        text-transform: uppercase;
-                        letter-spacing: 0.5px;
-                        }
-                        /* Colors */
-                        .kpi-blue .kpi-icon-wrapper { background-color: #e7f1ff; color: #0d6efd; }
-                        .kpi-green .kpi-icon-wrapper { background-color: #d1e7dd; color: #0f5132; }
-                        .kpi-purple .kpi-icon-wrapper { background-color: #e0cffc; color: #6610f2; }
-                        .kpi-orange .kpi-icon-wrapper { background-color: #ffe5d0; color: #fd7e14; }
-                    </style>
 
                     <div class="kpi-container">
                         <!-- Tareas -->
@@ -169,6 +149,22 @@
                             </div>
                         </button>
 
+                        <!-- Stock Moves -->
+                        <button name="action_view_stock_moves" type="object"
+                            class="kpi-box border-0 text-start"
+                            style="cursor: pointer; background: #ffebee; color: #c62828;">
+                            <div class="kpi-icon-wrapper"
+                                style="background: rgba(198, 40, 40, 0.1); color: #c62828;">
+                                <i class="fa fa-cubes" />
+                            </div>
+                            <div class="kpi-content">
+                                <div class="kpi-value" style="color: #c62828;">
+                                    <field name="stock_move_count" />
+                                </div>
+                                <div class="kpi-label" style="color: #b71c1c;">Mov. Almacén</div>
+                            </div>
+                        </button>
+
                         <!-- Horas -->
                         <button name="action_view_timesheets" type="object"
                             class="kpi-box kpi-orange border-0 text-start" style="cursor: pointer;">
@@ -193,33 +189,35 @@
     <!-- QWEB TEMPLATE -->
     <template id="project_profitability_template">
         <div class="o_dashboard_container p-2 animate-fade-in">
-            <style>
-                .o_dashboard_container { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
-                Roboto, "Helvetica Neue", Arial, sans-serif; color: #212529; background-color:
-                #f8f9fa; border-radius: 8px; }
-                .kpi-card { background: white; border-radius: 12px; box-shadow: 0 2px 12px
-                rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.05); overflow: hidden;
-                margin-bottom: 20px; }
-                .kpi-table th { background-color: #fcfcfc; text-transform: uppercase; font-size:
-                0.75rem; letter-spacing: 0.5px; color: #6c757d; border-bottom: 1px solid #eee;
-                padding: 12px 8px; }
-                .kpi-table td { padding: 12px 8px; vertical-align: middle; border-bottom: 1px solid
-                #f0f0f0; font-size: 0.9rem; }
-                .section-header { background-color: #f8f9fa; font-weight: bold; color: #495057;
-                font-size: 0.85rem; padding: 8px 12px; border-bottom: 1px solid #eee; border-top:
-                1px solid #eee; }
-                .badge-percent { padding: 4px 8px; border-radius: 6px; font-size: 0.8rem;
-                font-weight: 600; display: inline-block; min-width: 60px; text-align: center; }
-                .active-dot { height: 6px; width: 6px; background-color: #28a745; border-radius:
-                50%; display: inline-block; margin-right: 6px; vertical-align: middle; box-shadow: 0
-                0 4px rgba(40, 167, 69, 0.4); }
-                .bg-soft-success { background-color: #d1e7dd; color: #0f5132; }
-                .bg-soft-danger { background-color: #f8d7da; color: #842029; }
-                .table-scroll-container { max-height: 400px; overflow-y: auto; }
-                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity:
-                1; transform: translateY(0); } }
-                .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
-            </style>
+
+
+            <!-- ALERTS SECTION -->
+            <div class="row mb-3" t-if="alert_negative_profit or alert_low_margin">
+                <div class="col-12">
+                    <!-- Red Alert: Negative Profit (Loss) -->
+                    <div t-if="alert_negative_profit"
+                        class="alert alert-danger d-flex align-items-center shadow-sm" role="alert">
+                        <i class="fa fa-exclamation-triangle fa-2x me-3" />
+                        <div>
+                            <h5 class="alert-heading fw-bold mb-1">¡Alerta Crítica: Rentabilidad
+                                Negativa!</h5>
+                            <p class="mb-0">Los costos del proyecto han superado los ingresos
+                                facturados. Se requiere revisión inmediata.</p>
+                        </div>
+                    </div>
+
+                    <!-- Yellow Alert: Low Margin (but profitable) -->
+                    <div t-if="alert_low_margin and not alert_negative_profit"
+                        class="alert alert-warning d-flex align-items-center shadow-sm" role="alert">
+                        <i class="fa fa-info-circle fa-2x me-3" />
+                        <div>
+                            <h5 class="alert-heading fw-bold mb-1">Margen de Ganancia Bajo</h5>
+                            <p class="mb-0">El margen de rentabilidad es inferior al 10%. Considere
+                                optimizar costos operativos.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <div class="kpi-card">
                 <div class="p-3 border-bottom">
@@ -323,7 +321,11 @@
                                 <td></td>
                                 <td
                                     t-attf-class="text-center fw-bold fs-6 p-3 #{'text-success' if profitability['margin_total'] &gt;= 0 else 'text-danger'}">
-                                    <t t-out="format_monetary(profitability['margin_total'])" />
+                                    <div class="d-flex flex-column align-items-center">
+                                        <t t-out="format_monetary(profitability['margin_total'])" />
+
+
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>
@@ -334,10 +336,13 @@
                                 <td></td>
                                 <td></td>
                                 <td class="text-center pb-3">
-                                    <div
-                                        t-attf-class="badge-percent #{'bg-soft-success' if profitability['profit_percentage'] &gt;= 0 else 'bg-soft-danger'}">
-                                        <t
-                                            t-out="format_percentage(profitability['profit_percentage'])" />
+                                    <div class="d-flex flex-column align-items-center">
+                                        <div
+                                            t-attf-class="badge-percent #{'bg-soft-success' if profitability['profit_percentage'] &gt;= 0 else 'bg-soft-danger'}">
+                                            <t
+                                                t-out="format_percentage(profitability['profit_percentage'])" />
+                                        </div>
+
                                     </div>
                                 </td>
                             </tr>
@@ -353,131 +358,149 @@
                         de Costos</h6>
                 </div>
                 <div class="p-4">
-                    <style>
-                        .legend-item {
-                        transition: background-color 0.2s;
-                        border-left: 4px solid transparent;
-                        }
-                        .legend-item:hover {
-                        background-color: rgba(0,0,0,0.02);
-                        }
-                        .legend-label {
-                        font-size: 0.95rem;
-                        font-weight: 600;
-                        color: #495057;
-                        }
-                        .legend-amount {
-                        font-size: 1rem;
-                        font-weight: 700;
-                        color: #212529;
-                        }
-                        .badge-legend {
-                        font-size: 0.9rem;
-                        padding: 6px 10px;
-                        border-radius: 6px;
-                        font-weight: 700;
-                        min-width: 70px;
-                        text-align: center;
-                        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-                        }
-                        /* High contrast badges */
-                        .badge-stock { background-color: #ffebee; color: #c62828; border: 1px solid
-                        #ffcdd2; }
-                        .badge-purchase { background-color: #e3f2fd; color: #1565c0; border: 1px
-                        solid #bbdefb; }
-                        .badge-timesheet { background-color: #fff3e0; color: #ef6c00; border: 1px
-                        solid #ffe0b2; }
-                        .badge-expense { background-color: #f3e5f5; color: #6a1b9a; border: 1px
-                        solid #e1bee7; }
-                    </style>
 
-                    <t t-if="profitability['total_costs'] > 0">
-                        <div class="row align-items-center">
-                            <div class="col-md-5 d-flex justify-content-center mb-4 mb-md-0">
-                                <!-- CSS CONIC GRADIENT CHART -->
-                                <div class="chart-container"
-                                    style="position: relative; width: 220px; height: 220px; border-radius: 50%; opacity: 0; animation: fadeIn 0.8s forwards; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-                                    <div class="chart-pie" t-attf-style="{{ chart_data['style'] }}">
+
+                    <t t-if="profitability['total_costs'] > 0 or waterfall_data">
+                        <t t-if="wizard.chart_type == 'pie'">
+                            <div class="row align-items-center">
+                                <div class="col-md-5 d-flex justify-content-center mb-4 mb-md-0">
+                                    <!-- CSS CONIC GRADIENT CHART -->
+                                    <div class="chart-container"
+                                        style="position: relative; width: 220px; height: 220px; border-radius: 50%; opacity: 0; animation: fadeIn 0.8s forwards; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                                        <div class="chart-pie"
+                                            t-att-style="chart_data['style']">
+                                        </div>
+                                        <div class="chart-inner"
+                                            style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 65%; height: 65%; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);">
+                                            <span
+                                                class="text-muted small text-uppercase fw-bold mb-1">Total
+                                                Costos</span>
+                                            <span class="fw-bold fs-4 text-dark">
+                                                <t
+                                                    t-out="format_monetary(profitability['total_costs'])" />
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div class="chart-inner"
-                                        style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 65%; height: 65%; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);">
-                                        <span class="text-muted small text-uppercase fw-bold mb-1">Total
-                                            Costos</span>
-                                        <span class="fw-bold fs-4 text-dark">
-                                            <t t-out="format_monetary(profitability['total_costs'])" />
-                                        </span>
+                                </div>
+                                <div class="col-md-7">
+                                    <h6
+                                        class="mb-4 text-muted text-uppercase small fw-bold border-bottom pb-2">Detalle
+                                        de Distribución</h6>
+                                    <div class="d-flex flex-column gap-3">
+                                        <!-- Stock -->
+                                        <div
+                                            class="d-flex align-items-center p-2 rounded legend-item"
+                                            style="border-left-color: #dc3545;">
+                                            <div class="d-flex flex-column flex-grow-1 ms-2">
+                                                <span class="legend-label">Materiales (Stock)</span>
+                                                <span class="legend-amount">
+                                                    <t
+                                                        t-out="format_monetary(profitability['total_stock_moves'])" />
+                                                </span>
+                                            </div>
+                                            <span class="badge-legend badge-stock">
+                                                <t
+                                                    t-out="format_percentage(chart_data['stock_pct'])" />
+                                            </span>
+                                        </div>
+
+                                        <!-- Compras -->
+                                        <div
+                                            class="d-flex align-items-center p-2 rounded legend-item"
+                                            style="border-left-color: #0d6efd;">
+                                            <div class="d-flex flex-column flex-grow-1 ms-2">
+                                                <span class="legend-label">Compras Directas</span>
+                                                <span class="legend-amount">
+                                                    <t
+                                                        t-out="format_monetary(profitability['total_purchases'])" />
+                                                </span>
+                                            </div>
+                                            <span class="badge-legend badge-purchase">
+                                                <t
+                                                    t-out="format_percentage(chart_data['purchases_pct'])" />
+                                            </span>
+                                        </div>
+
+                                        <!-- Horas -->
+                                        <div
+                                            class="d-flex align-items-center p-2 rounded legend-item"
+                                            style="border-left-color: #fd7e14;">
+                                            <div class="d-flex flex-column flex-grow-1 ms-2">
+                                                <span class="legend-label">Mano de Obra (Horas)</span>
+                                                <span class="legend-amount">
+                                                    <t
+                                                        t-out="format_monetary(profitability['timesheet_cost'])" />
+                                                </span>
+                                            </div>
+                                            <span class="badge-legend badge-timesheet">
+                                                <t
+                                                    t-out="format_percentage(chart_data['timesheets_pct'])" />
+                                            </span>
+                                        </div>
+
+                                        <!-- Gastos -->
+                                        <div
+                                            class="d-flex align-items-center p-2 rounded legend-item"
+                                            style="border-left-color: #6610f2;">
+                                            <div class="d-flex flex-column flex-grow-1 ms-2">
+                                                <span class="legend-label">Gastos (Reembolsos)</span>
+                                                <span class="legend-amount">
+                                                    <t
+                                                        t-out="format_monetary(profitability['total_expenses'])" />
+                                                </span>
+                                            </div>
+                                            <span class="badge-legend badge-expense">
+                                                <t
+                                                    t-out="format_percentage(chart_data['expenses_pct'])" />
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-7">
-                                <h6
-                                    class="mb-4 text-muted text-uppercase small fw-bold border-bottom pb-2">Detalle
-                                    de Distribución</h6>
-                                <div class="d-flex flex-column gap-3">
-                                    <!-- Stock -->
-                                    <div class="d-flex align-items-center p-2 rounded legend-item"
-                                        style="border-left-color: #dc3545;">
-                                        <div class="d-flex flex-column flex-grow-1 ms-2">
-                                            <span class="legend-label">Materiales (Stock)</span>
-                                            <span class="legend-amount">
-                                                <t
-                                                    t-out="format_monetary(profitability['total_stock_moves'])" />
-                                            </span>
-                                        </div>
-                                        <span class="badge-legend badge-stock">
-                                            <t t-out="format_percentage(chart_data['stock_pct'])" />
-                                        </span>
-                                    </div>
+                        </t>
 
-                                    <!-- Compras -->
-                                    <div class="d-flex align-items-center p-2 rounded legend-item"
-                                        style="border-left-color: #0d6efd;">
-                                        <div class="d-flex flex-column flex-grow-1 ms-2">
-                                            <span class="legend-label">Compras Directas</span>
-                                            <span class="legend-amount">
-                                                <t
-                                                    t-out="format_monetary(profitability['total_purchases'])" />
-                                            </span>
-                                        </div>
-                                        <span class="badge-legend badge-purchase">
-                                            <t
-                                                t-out="format_percentage(chart_data['purchases_pct'])" />
-                                        </span>
-                                    </div>
-
-                                    <!-- Horas -->
-                                    <div class="d-flex align-items-center p-2 rounded legend-item"
-                                        style="border-left-color: #fd7e14;">
-                                        <div class="d-flex flex-column flex-grow-1 ms-2">
-                                            <span class="legend-label">Mano de Obra (Horas)</span>
-                                            <span class="legend-amount">
-                                                <t
-                                                    t-out="format_monetary(profitability['timesheet_cost'])" />
-                                            </span>
-                                        </div>
-                                        <span class="badge-legend badge-timesheet">
-                                            <t
-                                                t-out="format_percentage(chart_data['timesheets_pct'])" />
-                                        </span>
-                                    </div>
-
-                                    <!-- Gastos -->
-                                    <div class="d-flex align-items-center p-2 rounded legend-item"
-                                        style="border-left-color: #6610f2;">
-                                        <div class="d-flex flex-column flex-grow-1 ms-2">
-                                            <span class="legend-label">Gastos (Reembolsos)</span>
-                                            <span class="legend-amount">
-                                                <t
-                                                    t-out="format_monetary(profitability['total_expenses'])" />
-                                            </span>
-                                        </div>
-                                        <span class="badge-legend badge-expense">
-                                            <t t-out="format_percentage(chart_data['expenses_pct'])" />
-                                        </span>
-                                    </div>
-                                </div>
+                        <!-- VIEW: LINE CHART -->
+                        <t t-if="wizard.chart_type == 'line'">
+                            <div class="line-chart-container mb-4 mt-4 text-center">
+                                <t t-out="line_chart_svg" />
                             </div>
-                        </div>
+                        </t>
+
+                        <!-- VIEW: WATERFALL (COLUMN) CHART -->
+                        <t t-if="wizard.chart_type == 'waterfall'">
+
+                            <div class="column-chart-container mb-5"
+                                style="position: relative; height: 380px; width: 100%; display: flex; align-items: flex-end; border-bottom: 2px solid #e9ecef; margin-top: 50px;">
+                                <t t-foreach="column_data" t-as="col">
+                                    <!-- Use flex-grow to distribute horizontal space evenly -->
+                                    <div class="column-group"
+                                        style="flex: 1; margin: 0 10px; position: relative; height: 100%;">
+
+                                        <!-- Absolute Bar -->
+                                        <div class="waterfall-bar-abs"
+                                            t-att-style="'position: absolute; left: 0; right: 0; width: 100%; transition: all 0.3s; ' + 
+                                                          'bottom: ' + str(col['bottom']) + '%; ' + 
+                                                          'height: ' + str(col['height']) + '%; ' + 
+                                                          'background-color: ' + col['color'] + '; ' +
+                                                          'box-shadow: 0 2px 5px rgba(0,0,0,0.2); border-radius: 4px;'"
+                                            t-att-title="col['label'] + ': ' + format_monetary(col['amount'])">
+
+                                            <!-- Label Inside/Above Value -->
+                                            <div class="column-value-float"
+                                                style="position: absolute; top: -20px; width: 100%; text-align: center; font-size: 0.8rem; font-weight: bold; color: #333; white-space: nowrap;">
+                                                <t t-out="format_monetary(col['amount'])" />
+                                            </div>
+                                        </div>
+
+                                        <!-- Axis Label -->
+                                        <div class="column-label"
+                                            style="position: absolute; bottom: -35px; width: 100%; text-align: center; font-size: 0.75rem; font-weight: 700; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px;">
+                                            <t t-esc="col['label']" />
+                                        </div>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
                     </t>
                     <t t-else="">
                         <div class="text-center p-4 text-muted">
@@ -488,186 +511,314 @@
                 </div>
             </div>
 
+
             <!-- DETALLE DE COMPRAS -->
             <div t-if="purchases_list" class="kpi-card mt-4">
-                <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 fw-bold text-dark"><i
-                            class="fa fa-shopping-cart me-2 text-success" />Detalle de Compras
-                        (Drill-down)</h6>
+                <div class="p-3 border-bottom d-flex justify-content-between align-items-center"
+                    data-bs-toggle="collapse" data-bs-target="#collapsePurchases"
+                    aria-expanded="true"
+                    style="cursor: pointer; transition: background-color 0.2s;">
+                    <h6 class="m-0 fw-bold text-dark">
+                        <i class="fa fa-shopping-cart me-2 text-success" /> Detalle de Compras </h6>
+                    <div class="d-flex align-items-center">
+                        <span class="fw-bold text-dark me-3"> Total: <t
+                                t-out="format_monetary(profitability['total_purchases'])" />
+                        </span>
+                        <i class="fa fa-chevron-down text-muted" />
+                    </div>
                 </div>
-                <div class="table-responsive table-scroll-container">
-                    <table class="table table-sm table-hover align-middle mb-0">
-                        <thead class="bg-light sticky-top" style="z-index: 1;">
-                            <tr>
-                                <th class="ps-3">Pedido</th>
-                                <th>Fecha</th>
-                                <th>Proveedor</th>
-                                <th>Producto</th>
-                                <th class="text-center">Estado</th>
-                                <th class="text-end">Cant.</th>
-                                <th class="text-end pe-3">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr t-foreach="purchases_list" t-as="po">
-                                <td class="ps-3 fw-bold">
-                                    <t t-esc="po['order_name']" />
-                                </td>
-                                <td
-                                    class="text-muted">
-                                    <span t-esc="po['date']" t-options='{"widget": "date"}' />
-                                </td>
-                                <td>
-                                    <t t-esc="po['partner']" />
-                                </td>
-                                <td>
-                                    <t t-esc="po['product']" />
-                                </td>
-                                <td
-                                    class="text-center">
-                                    <span
-                                        t-attf-class="badge rounded-pill #{'bg-success' if po['state_raw'] == 'purchase' or po['state_raw'] == 'done' else 'bg-secondary'}"
-                                        t-esc="po['state']" />
-                                </td>
-                                <td class="text-end">
-                                    <t t-esc="po['qty']" />
-                                </td>
-                                <td class="text-end pe-3 fw-bold">
-                                    <t t-out="format_monetary(po['total'])" />
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div id="collapsePurchases" class="collapse">
+                    <div class="table-responsive table-scroll-container">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="bg-light sticky-top" style="z-index: 1;">
+                                <tr>
+                                    <th class="ps-3">Pedido</th>
+                                    <th>Fecha</th>
+                                    <th>Proveedor</th>
+                                    <th>Proyecto</th>
+                                    <th>Tarea</th>
+                                    <th>Producto</th>
+                                    <th class="text-center">Estado</th>
+                                    <th class="text-end">Cant.</th>
+                                    <th class="text-end pe-3">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="purchases_list" t-as="po">
+                                    <td class="ps-3 fw-bold">
+                                        <a
+                                            t-att-href="'/web#id=' + str(po['order_id']) + '&amp;model=purchase.order&amp;view_type=form'"
+                                            target="_blank">
+                                            <t t-esc="po['order_name']" />
+                                        </a>
+                                    </td>
+                                    <td class="text-muted">
+                                        <span t-esc="po['date']" t-options='{"widget": "date"}' />
+                                    </td>
+                                    <td>
+                                        <t t-esc="po['partner']" />
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            <t t-esc="po['project_name']" />
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            <t t-esc="po['task_name']" />
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <t t-esc="po['product']" />
+                                    </td>
+                                    <td class="text-center">
+                                        <span
+                                            t-attf-class="badge rounded-pill #{'bg-success' if po['state_raw'] == 'purchase' or po['state_raw'] == 'done' else 'bg-secondary'}"
+                                            t-esc="po['state']" />
+                                    </td>
+                                    <td class="text-end">
+                                        <t t-esc="po['qty']" />
+                                    </td>
+                                    <td class="text-end pe-3 fw-bold">
+                                        <t t-out="format_monetary(po['total'])" />
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DETALLE DE MANO DE OBRA (HORAS) -->
+            <div t-if="timesheets_list" class="kpi-card mt-4">
+                <div class="p-3 border-bottom d-flex justify-content-between align-items-center"
+                    data-bs-toggle="collapse" data-bs-target="#collapseTimesheets"
+                    aria-expanded="true"
+                    style="cursor: pointer; transition: background-color 0.2s;">
+                    <h6 class="m-0 fw-bold text-dark">
+                        <i class="fa fa-clock-o me-2 text-warning" /> Detalle de Mano de Obra </h6>
+                    <div class="d-flex align-items-center">
+                        <span class="fw-bold text-dark me-3"> Total: <t
+                                t-out="format_monetary(profitability['timesheet_cost'])" />
+                        </span>
+                        <i class="fa fa-chevron-down text-muted" />
+                    </div>
+                </div>
+                <div id="collapseTimesheets" class="collapse">
+                    <div class="table-responsive table-scroll-container">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="bg-light sticky-top" style="z-index: 1;">
+                                <tr>
+                                    <th class="ps-3">Descripción</th>
+                                    <th>Empleado</th>
+                                    <th>Proyecto</th>
+                                    <th>Tarea</th>
+                                    <th>Fecha</th>
+                                    <th class="text-center">Estado</th>
+                                    <th class="text-end pe-3">Costo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="timesheets_list" t-as="ts">
+                                    <td class="ps-3 fw-bold">
+                                        <t t-esc="ts['description']" />
+                                    </td>
+                                    <td>
+                                        <t t-esc="ts['employee']" />
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            <t t-esc="ts['project_name']" />
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <t t-esc="ts['task']" />
+                                    </td>
+                                    <td class="text-muted">
+                                        <span t-esc="ts['date']" t-options='{"widget": "date"}' />
+                                    </td>
+                                    <td class="text-center">
+                                        <span
+                                            t-attf-class="badge rounded-pill #{'bg-success' if ts['state_raw'] == 'approve' or ts['state_raw'] == 'applied' else 'bg-warning'}"
+                                            t-esc="ts['state_label']" />
+                                    </td>
+                                    <td class="text-end pe-3 fw-bold">
+                                        <t t-out="format_monetary(ts['total'])" />
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
             <!-- DETALLE DE GASTOS -->
             <div t-if="expenses_list" class="kpi-card mt-4">
-                <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 fw-bold text-dark"><i class="fa fa-money me-2 text-warning" />Detalle
-                        de Gastos (Drill-down)</h6>
+                <div class="p-3 border-bottom d-flex justify-content-between align-items-center"
+                    data-bs-toggle="collapse" data-bs-target="#collapseExpenses"
+                    aria-expanded="true"
+                    style="cursor: pointer; transition: background-color 0.2s;">
+                    <h6 class="m-0 fw-bold text-dark">
+                        <i class="fa fa-money me-2 text-warning" /> Detalle de Gastos </h6>
+                    <div class="d-flex align-items-center">
+                        <span class="fw-bold text-dark me-3"> Total: <t
+                                t-out="format_monetary(profitability['total_expenses'])" />
+                        </span>
+                        <i class="fa fa-chevron-down text-muted" />
+                    </div>
                 </div>
-                <div class="table-responsive table-scroll-container">
-                    <table class="table table-sm table-hover align-middle mb-0">
-                        <thead class="bg-light sticky-top" style="z-index: 1;">
-                            <tr>
-                                <th class="ps-3">Descripción</th>
-                                <th>Empleado</th>
-                                <th>Fecha</th>
-                                <th>Informe</th>
-                                <th class="text-center">Estado</th>
-                                <th class="text-end pe-3">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr t-foreach="expenses_list" t-as="exp">
-                                <td class="ps-3 fw-bold">
-                                    <t t-esc="exp['product']" />
-                                </td> <!--
-                                Usamos product name como desc breve -->
-                                <td>
-                                    <t t-esc="exp['employee']" />
-                                </td>
-                                <td class="text-muted">
-                                    <span t-esc="exp['date']" t-options='{"widget": "date"}' />
-                                </td>
-                                <td>
-                                    <t t-esc="exp['sheet_name']" />
-                                </td>
-                                <td class="text-center">
-                                    <span
-                                        t-attf-class="badge rounded-pill #{'bg-success' if exp['state_raw'] == 'done' or exp['state_raw'] == 'post' else 'bg-warning'}"
-                                        t-esc="exp['state']" />
-                                </td>
-                                <td
-                                    class="text-end pe-3 fw-bold">
-                                    <t t-out="format_monetary(exp['total'])" />
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div id="collapseExpenses" class="collapse">
+                    <div class="table-responsive table-scroll-container">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="bg-light sticky-top" style="z-index: 1;">
+                                <tr>
+                                    <th class="ps-3">Descripción</th>
+                                    <th>Empleado</th>
+                                    <th>Proyecto</th>
+                                    <th>Tarea</th>
+                                    <th>Fecha</th>
+                                    <th>Informe</th>
+                                    <th class="text-center">Estado</th>
+                                    <th class="text-end pe-3">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="expenses_list" t-as="exp">
+                                    <td class="ps-3 fw-bold">
+                                        <t t-esc="exp['product']" />
+                                    </td>
+                                    <td>
+                                        <t t-esc="exp['employee']" />
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            <t t-esc="exp['project_name']" />
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            <t t-esc="exp['task_name']" />
+                                        </small>
+                                    </td>
+                                    <td class="text-muted">
+                                        <span t-esc="exp['date']" t-options='{"widget": "date"}' />
+                                    </td>
+                                    <td>
+                                        <t t-esc="exp['sheet_name']" />
+                                    </td>
+                                    <td class="text-center">
+                                        <span
+                                            t-attf-class="badge rounded-pill #{'bg-success' if exp['state_raw'] == 'done' or exp['state_raw'] == 'post' else 'bg-warning'}"
+                                            t-esc="exp['state']" />
+                                    </td>
+                                    <td class="text-end pe-3 fw-bold">
+                                        <t t-out="format_monetary(exp['total'])" />
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
             <!-- TABLA DE MOVIMIENTOS DE ALMACEN DETALLADA -->
             <div t-if="stock_moves_list" class="kpi-card mt-4">
-                <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 fw-bold text-dark"><i class="fa fa-cubes me-2 text-primary" />Detalle
-                        de Materiales Consolidados</h6>
+                <div class="p-3 border-bottom d-flex justify-content-between align-items-center"
+                    data-bs-toggle="collapse" data-bs-target="#collapseStock" aria-expanded="false"
+                    style="cursor: pointer; transition: background-color 0.2s;">
+                    <h6 class="m-0 fw-bold text-dark">
+                        <i class="fa fa-cubes me-2 text-primary" /> Detalle de Materiales
+                        Consolidados </h6>
+                    <div class="d-flex align-items-center">
+                        <span class="fw-bold text-dark me-3"> Total: <t
+                                t-out="format_monetary(profitability['total_stock_moves'])" />
+                        </span>
+                        <i class="fa fa-chevron-down text-muted" />
+                    </div>
                 </div>
-                <div class="table-responsive table-scroll-container">
-                    <table class="table table-sm table-hover align-middle mb-0">
-                        <thead class="bg-light sticky-top" style="z-index: 1;">
-                            <tr>
-                                <th class="ps-3 text-center">Estado</th>
-                                <th class="text-center">Tarea</th>
-                                <th class="text-center">Fecha</th>
-                                <th class="text-center">Referencia</th>
-                                <th>Producto</th>
-                                <th>Ubicaciones</th>
-                                <th class="text-end">Cant.</th>
-                                <th class="text-end">Costo Unit.</th>
-                                <th class="text-end pe-3">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr t-foreach="stock_moves_list" t-as="move">
-                                <td class="text-center ps-3">
-                                    <span
-                                        t-attf-class="badge rounded-pill fw-bold #{'bg-success text-white' if move['state_raw'] == 'done' else 'bg-warning text-dark'}"
-                                        style="font-size: 0.85rem; padding: 6px 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); letter-spacing: 0.5px;"
-                                        t-esc="move['state_label']" />
-                                </td>
-                                <td class="text-center text-muted" style="max-width: 180px;">
-                                    <span t-esc="move['task_name']" t-att-title="move['task_name']"
-                                        class="badge bg-light text-dark border text-truncate"
-                                        style="max-width: 100%; display: inline-block; vertical-align: bottom;" />
-                                </td>
-                                <td class="text-center text-muted">
-                                    <small t-esc="move['date']" t-options='{"widget": "date"}' />
-                                </td>
-                                <td class="text-center">
-                                    <a t-att-href="move['picking_url']" target="_blank"
-                                        class="text-decoration-none fw-bold text-primary"
-                                        style="font-size: 0.9rem;">
-                                        <t t-esc="move['picking']" />
-                                    </a>
-                                </td>
-                                <td>
-                                    <span class="fw-bold text-dark" t-esc="move['product_name']" />
-                                    <div t-if="move['lot_name'] != '-'"
-                                        class="small text-muted mt-1">
-                                        <i class="fa fa-barcode me-1" />
-                                        <t t-esc="move['lot_name']" />
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="d-flex flex-column small" style="line-height: 1.2;">
-                                        <div>
-                                            <span class="text-muted me-1">De:</span>
-                                            <span class="text-dark" t-esc="move['location_id']" />
+                <div id="collapseStock" class="collapse">
+                    <div class="table-responsive table-scroll-container">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="bg-light sticky-top" style="z-index: 1;">
+                                <tr>
+                                    <th class="ps-3 text-center">Estado</th>
+                                    <th class="text-center">Proyecto</th>
+                                    <th class="text-center">Tarea</th>
+                                    <th class="text-center">Fecha</th>
+                                    <th class="text-center">Referencia</th>
+                                    <th>Producto</th>
+                                    <th>Ubicaciones</th>
+                                    <th class="text-end">Cant.</th>
+                                    <th class="text-end">Costo Unit.</th>
+                                    <th class="text-end pe-3">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="stock_moves_list" t-as="move">
+                                    <td class="text-center ps-3">
+                                        <span
+                                            t-attf-class="badge rounded-pill fw-bold #{'bg-success text-white' if move['state_raw'] == 'done' else 'bg-warning text-dark'}"
+                                            style="font-size: 0.85rem; padding: 6px 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); letter-spacing: 0.5px;"
+                                            t-esc="move['state_label']" />
+                                    </td>
+                                    <td class="text-center text-muted" style="max-width: 150px;">
+                                        <small t-esc="move['project_name']"
+                                            class="d-block text-truncate" />
+                                    </td>
+                                    <td class="text-center text-muted" style="max-width: 180px;">
+                                        <span t-esc="move['task_name']"
+                                            t-att-title="move['task_name']"
+                                            class="badge bg-light text-dark border text-truncate"
+                                            style="max-width: 100%; display: inline-block; vertical-align: bottom;" />
+                                    </td>
+                                    <td class="text-center text-muted">
+                                        <small t-esc="move['date']" t-options='{"widget": "date"}' />
+                                    </td>
+                                    <td class="text-center">
+                                        <a t-att-href="move['picking_url']" target="_blank"
+                                            class="text-decoration-none fw-bold text-primary"
+                                            style="font-size: 0.9rem;">
+                                            <t t-esc="move['picking']" />
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold text-dark" t-esc="move['product_name']" />
+                                        <div t-if="move['lot_name'] != '-'"
+                                            class="small text-muted mt-1">
+                                            <i class="fa fa-barcode me-1" />
+                                            <t t-esc="move['lot_name']" />
                                         </div>
-                                        <div>
-                                            <span class="text-muted me-1">A:</span>
-                                            <span class="text-dark" t-esc="move['location_dest_id']" />
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-column small"
+                                            style="line-height: 1.2;">
+                                            <div>
+                                                <span class="text-muted me-1">De:</span>
+                                                <span class="text-dark" t-esc="move['location_id']" />
+                                            </div>
+                                            <div>
+                                                <span class="text-muted me-1">A:</span>
+                                                <span class="text-dark"
+                                                    t-esc="move['location_dest_id']" />
+                                            </div>
                                         </div>
-                                    </div>
-                                </td>
-                                <td class="text-end">
-                                    <span class="fw-bold" t-esc="move['quantity']" />
-                                    <small class="text-muted ms-1" t-esc="move['uom']" />
-                                </td>
-                                <td class="text-end text-muted">
-                                    <small>
-                                        <t t-out="format_monetary(move['price_unit'])" />
-                                    </small>
-                                </td>
-                                <td class="text-end fw-bold text-danger pe-3">
-                                    <t t-out="format_monetary(move['total_cost'])" />
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="fw-bold" t-esc="move['quantity']" />
+                                        <small class="text-muted ms-1" t-esc="move['uom']" />
+                                    </td>
+                                    <td class="text-end text-muted">
+                                        <small>
+                                            <t t-out="format_monetary(move['price_unit'])" />
+                                        </small>
+                                    </td>
+                                    <td class="text-end fw-bold text-danger pe-3">
+                                        <t t-out="format_monetary(move['total_cost'])" />
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

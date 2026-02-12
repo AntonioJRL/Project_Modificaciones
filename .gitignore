@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Entornos virtuales
+venv/
+env/
+.env
+
+# Logs
+*.log
+
+# Archivos temporales
+.DS_Store
+Thumbs.db
+
+# Odoo temporales
+sessions/
+filestore/
+
+# Archivos de configuración locales
+*.conf

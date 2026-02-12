@@ -101,6 +101,15 @@
                         padding-bottom: 0px !important;
                         }
                     </style>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_pending_service"
+                            type="object"
+                            class="oe_stat_button"
+                            icon="fa-ticket"
+                            invisible="pending_service_count == 0">
+                            <field name="pending_service_count" widget="statinfo" string="Pendiente" />
+                        </button>
+                    </div>
                     <div class="float-end fs-6 border-0">
                         <field name="serv_assig" class="me-1" widget="badge"
                             decoration-muted="serv_assig == 'no_assig'"
@@ -254,6 +263,7 @@
                             <field name="datefact" readonly="avances_state in 'assigned'" />
                             <field name="is_invoiced" invisible="1" />
                             <field name="sale_total" />
+                            <field name="pending_service_id" groups="base.group_system" />
                         </group>
                         <group>
                             <field name="om" readonly="avances_state in 'assigned'" />
@@ -441,6 +451,8 @@
                         context="{'group_by': 'responsible_id'}" />
                     <filter string="Responsable Cliente" name="supervisorplanta_group"
                         context="{'group_by': 'supervisorplanta'}" />
+                    <filter string="Servicio" name="group_by_pending_service"
+                        context="{'group_by': 'pending_service_id'}" />
                     <filter string="Estado de Estimación" name="orden_est"
                         context="{'group_by':'estimado'}" />
                 </group>

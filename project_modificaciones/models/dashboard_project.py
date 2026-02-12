@@ -144,18 +144,3 @@ class ProjectProject(models.Model):
             'domain': [('task_id', 'in', self.task_ids.ids), ('state', 'in', ['purchase', 'done'])],
             'context': {'create': False},
         }
-
-    def action_open_profitability_dashboard(self):
-        self.ensure_one()
-        wizard = self.env['project.profitability.report'].create({
-            'project_id': self.id,
-            'filter_type': 'all'
-        })
-        return {
-            'type': 'ir.actions.act_window',
-            'name': _('Rentabilidad Avanzada'),
-            'res_model': 'project.profitability.report',
-            'res_id': wizard.id,
-            'view_mode': 'form',
-            'target': 'new',
-        }
