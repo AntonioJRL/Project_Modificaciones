@@ -411,11 +411,10 @@
                                                             t-as="avance">
                                                             <tr class="align-middle">
                                                                 <td class="text-center">
-                                                                    <a href="#"
-                                                                        class="js_dashboard_action"
-                                                                        t-att-data-model="'project.sub.update'"
-                                                                        t-att-data-id="avance.id"
-                                                                        title="Ver Detalle">
+                                                                    <a
+                                                                        t-attf-href="/web#id=#{avance.id}&amp;model=project.sub.update&amp;view_type=form"
+                                                                        target="_blank"
+                                                                        onclick="window.open(this.href); return false;">
                                                                         <span class="badge span-bg"
                                                                             t-esc="avance.name" />
                                                                     </a>
@@ -526,11 +525,10 @@
                                                             t-esc="format_monetary(line.price_subtotal)" />
                                                         <td class="text-center">
                                                             <t t-if="line.avances_ids">
-                                                                <a href="#"
-                                                                    class="js_dashboard_action"
-                                                                    t-att-data-xml-id="'project_modificaciones.action_view_avances_from_dashboard'"
-                                                                    t-att-data-active-id="line.id"
-                                                                    title="Ver Avances de esta línea">
+                                                                <a
+                                                                    t-attf-href="/web#action=project_modificaciones.action_view_avances_from_dashboard&amp;active_id=#{line.id}"
+                                                                    title="Ver Avances de esta línea"
+                                                                    target="_blank">
                                                                     <span class="badge badge-negro">
                                                                         <i class="fa fa-eye me-1" />
                                                                         <t

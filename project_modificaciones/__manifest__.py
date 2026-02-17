@@ -1,8 +1,8 @@
 {
     'name': 'Modificaciones de Project',
-    'version': '17.1.2',
+    'version': '17.1.3',
     'author': 'Mauricio, Antonio J.',
-    'depends': ['base', 'sale', 'hr', 'project', 'sale_project', 'purchase', 'hr_expense', 'sale_purchase', 'hr_timesheet', 'employee_purchase_requisition', 'stock', 'web', 'attendance_regularization'],
+    'depends': ['base', 'sale', 'hr', 'project', 'sale_project', 'purchase', 'hr_expense', 'sale_purchase', 'hr_timesheet', 'employee_purchase_requisition', 'stock','web'],
     'license': 'AGPL-3',
     'data': [
         # 1. Security (Groups first, then Access Rights, then Rules)
@@ -26,9 +26,6 @@
         "views/wizard_rechazado_task_views.xml",
         "views/asignar_avances_project_wizard_views.xml",
         "wizard/pending_service_wizard.xml",
-        "wizard/project_reclassify_wizard_views.xml",
-        "wizard/project_change_wizard.xml",
-        "wizard/project_sub_update_reclassify_wizard_views.xml",
 
         # 4. Views (Main Models & Actions)
         # These define actions that might be used in menus later
@@ -57,13 +54,16 @@
     ],
     "assets": {
         "web.assets_backend": [
-            'project_modificaciones/static/src/css/style.css',
+            "project_modificaciones/static/src/css/style.css",
+            'project_modificaciones/static/src/css/header.css',
             'project_modificaciones/static/src/scss/project_profitability.scss',
             'project_modificaciones/static/src/fields/one2manysearch/one2manysearch.js',
             'project_modificaciones/static/src/fields/one2manysearch/one2manysearch_template.xml',
+
         ],
     },
 
+    
     'category': 'Technical',
     'license': 'AGPL-3',
     'installable': True,

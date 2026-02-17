@@ -31,6 +31,7 @@
                         </group>
                         <group>
                             <field name="include_archived" widget="boolean_toggle" />
+                            <field name="include_analytic_account" widget="boolean_toggle" />
                         </group>
                     </group>
                     <group string="Opciones de Filtrado">
@@ -175,7 +176,23 @@
                                 <div class="kpi-value">
                                     <field name="timesheet_hours" widget="float_time" />
                                 </div>
-                                <div class="kpi-label">Horas Reg.</div>
+                                <div class="kpi-label">HOJAS DE HORAS</div>
+                            </div>
+                        </button>
+
+                        <!-- Compensaciones -->
+                        <button name="action_view_compensations" type="object"
+                            class="kpi-box border-0 text-start"
+                            style="cursor: pointer; background: #e3f2fd; color: #0d47a1;">
+                            <div class="kpi-icon-wrapper"
+                                style="background: rgba(13, 71, 161, 0.1); color: #0d47a1;">
+                                <i class="fa fa-money" />
+                            </div>
+                            <div class="kpi-content">
+                                <div class="kpi-value" style="color: #0d47a1;">
+                                    <field name="compensation_count" />
+                                </div>
+                                <div class="kpi-label" style="color: #01579b;">Compensaciones</div>
                             </div>
                         </button>
                     </div>
@@ -499,6 +516,13 @@
                                         </div>
                                     </div>
                                 </t>
+                            </div>
+                        </t>
+
+                        <!-- VIEW: TOP TASKS CHART -->
+                        <t t-if="wizard.chart_type == 'top_tasks'">
+                            <div class="top-tasks-chart-container mb-4 mt-4 text-center">
+                                <t t-out="top_tasks_svg" />
                             </div>
                         </t>
                     </t>

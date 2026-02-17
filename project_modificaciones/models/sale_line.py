@@ -4,7 +4,6 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
-
 class SaleLine(models.Model):
     _inherit = 'sale.order.line'
 
@@ -32,10 +31,9 @@ class SaleLine(models.Model):
     @api.depends("position")
     def _compute_position_formatted(self):
         for record in self:
-            record.position_formatted = record._format_position(
-                record.position)
+            record.position_formatted = record._format_position(record.position)
 
-    @api.onchange("position", "product_id")
+    @api.onchange("position", "product_id") 
     def _onchange_position_update_name(self):
         for line in self:
             if line.position and line.name:
@@ -47,8 +45,7 @@ class SaleLine(models.Model):
                     line.name = prefix + line.name
 
     def _add_next_position_on_new_line(self, vals_list):
-        sale_ids = [line["order_id"]
-                    for line in vals_list if line.get("order_id")]
+        sale_ids = [line["order_id"] for line in vals_list if line.get("order_id")]
         if sale_ids:
             ids = tuple(set(sale_ids))
             self.flush_model()
@@ -58,8 +55,7 @@ class SaleLine(models.Model):
             """
             self.env.cr.execute(query, (ids,))
             default_pos = {key: 1 for key in ids}
-            existing_pos = {order_id: pos + 1 for order_id,
-                            pos in self.env.cr.fetchall()}
+            existing_pos = {order_id: pos + 1 for order_id, pos in self.env.cr.fetchall()}
             sale_pos = {**default_pos, **existing_pos}
             for line in vals_list:
                 line["position"] = sale_pos[line["order_id"]]
@@ -83,7 +79,7 @@ class SaleLine(models.Model):
     # -------------------------------------------------------------------------
 
     avances_ids = fields.One2many(
-        "project.sub.update",
+        "project.sub.update", 
         "sale_order_line_id",
         string="Avances de la Línea",
     )
@@ -113,8 +109,7 @@ class SaleLine(models.Model):
     def _compute_progress_percentage(self):
         for line in self:
             if line.product_uom_qty > 0:
-                line.progress_percentage = (
-                    line.qty_delivered / line.product_uom_qty) * 100
+                line.progress_percentage = (line.qty_delivered / line.product_uom_qty) * 100
             else:
                 line.progress_percentage = 0.0
 
@@ -142,8 +137,7 @@ class SaleLine(models.Model):
                     old_project = line.task_id.project_id
                     new_project = line.project_line_id
                     if old_project.id != new_project.id:
-                        line.task_id.sudo().write(
-                            {'project_id': new_project.id})
+                        line.task_id.sudo().write({'project_id': new_project.id})
                         # Limpieza de vinculación en el proyecto anterior si aplica
                         if old_project and old_project.sale_order_id.id == line.order_id.id:
                             other_tasks = self.env["project.task"].sudo().search_count([
@@ -152,18 +146,14 @@ class SaleLine(models.Model):
                                 ('id', '!=', line.task_id.id),
                             ])
                             if other_tasks == 0:
-                                old_project.sudo().write(
-                                    {'sale_order_id': False})
+                                old_project.sudo().write({'sale_order_id': False})
                         # Mensajes en chatter
-                        line.task_id.message_post(body=Markup(
-                            "🔄<b> Proyecto reasignado desde SOL. </b><br/>Anterior: %s | Nuevo: %s") % (old_project.name, new_project.name))
-                        line.order_id.message_post(body=Markup(
-                            "🔄<b> Proyecto de la tarea %s reasignado. </b>") % line.task_id.name)
+                        line.task_id.message_post(body=Markup("🔄<b> Proyecto reasignado desde SOL. </b><br/>Anterior: %s | Nuevo: %s") % (old_project.name, new_project.name))
+                        line.order_id.message_post(body=Markup("🔄<b> Proyecto de la tarea %s reasignado. </b>") % line.task_id.name)
         return res
 
     def _timesheet_service_generation(self):
-        lines_with_pending = self.filtered(
-            lambda l: l.pending_line_id and l.pending_line_id.task_id)
+        lines_with_pending = self.filtered(lambda l: l.pending_line_id and l.pending_line_id.task_id)
         for line in lines_with_pending:
             existing_task = line.pending_line_id.task_id
             existing_task.write({
@@ -172,20 +162,17 @@ class SaleLine(models.Model):
                 'project_id': line.pending_line_id.service_id.supervisor_id.proyecto_supervisor.id,
             })
             line.write({'task_id': existing_task.id})
-            existing_task.message_post(body=Markup(
-                _("Tarea vinculada exitosamente desde Servicio Pendiente.")))
-
+            existing_task.message_post(body=Markup(_("Tarea vinculada exitosamente desde Servicio Pendiente.")))
+        
         other_lines = self - lines_with_pending
         if other_lines:
             super(SaleLine, other_lines)._timesheet_service_generation()
-
+        
         # Garantizar proyecto correcto
         for line in self:
             if line.project_line_id:
-                tasks = self.env['project.task'].search(
-                    [('sale_line_id', '=', line.id)])
-                tasks.filtered(lambda t: t.project_id != line.project_line_id).write(
-                    {'project_id': line.project_line_id.id})
+                tasks = self.env['project.task'].search([('sale_line_id', '=', line.id)])
+                tasks.filtered(lambda t: t.project_id != line.project_line_id).write({'project_id': line.project_line_id.id})
         return True
 
     # -------------------------------------------------------------------------

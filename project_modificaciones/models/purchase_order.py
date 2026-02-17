@@ -15,7 +15,6 @@ class PurchaseOrder(models.Model):
         'project.project',
         string='Proyecto',
         help='Proyecto vinculado a la orden de compra',
-        # required=True,
         tracking=True,
     )
 
@@ -23,68 +22,37 @@ class PurchaseOrder(models.Model):
         'project.task',
         string='Tarea',
         help='Tarea a la que se le viculara la compra.',
-        domain="project_id and [('project_id', '=', project_id), ('state', 'not in', ['1_canceled'])] or [('state', 'not in', ['1_canceled'])]",
-        # required=True,
+        domain="project_id and [('project_id', '=', project_id), ('state', 'not in', ['1_done', '1_canceled'])] or [('state', 'not in', ['1_done', '1_canceled'])]",
         tracking=True,
     )
 
     @api.onchange('project_id')
     def _onchange_project_id_propagation(self):
-        """Si cambia la cabecera, propagamos a todas las líneas (comportamiento legacy)"""
-        # Solo propagamos si tenemos un proyecto definido.
-        if self.project_id and self.order_line:
-            # Iteramos para asegurar compatibilidad con NewIds (registros en memoria)
-            for line in self.order_line:
-                if line.project_id != self.project_id:
-                    line.project_id = self.project_id
+        """
+        Si cambia la cabecera, NO propagamos a todas las líneas existentes.
+        El usuario requiere que sea solo pre-llenado para nuevas líneas (gestionado por contexto en XML).
+        """
+        pass
 
     @api.onchange('task_order_id')
     def _onchange_task_id(self):
+        """
+        Si cambia la tarea de cabecera, NO propagamos a líneas existentes.
+        Solo asignamos el proyecto de cabecera si falta, por comodidad.
+        """
         if self.task_order_id:
-            # 1. Asignar proyecto si hace falta
+            # 1. Asignar proyecto si hace falta en la cabecera
             if self.task_order_id.project_id:
                 self.project_id = self.task_order_id.project_id
 
-            # 2. Propagar a líneas
-            if self.order_line:
-                for line in self.order_line:
-                    if line.task_id != self.task_order_id:
-                        line.task_id = self.task_order_id
-        # No else: Si borran la tarea, mantenemos el proyecto por comodidad,
-        # a menos que la lógica de líneas dicte lo contrario.
-
-    @api.onchange('order_line')
-    def _onchange_line_projects(self):
-        """
-        Sincroniza la cabecera con las líneas:
-        - Si todas las líneas tienen el mismo Proyecto/Tarea -> Cabecera se actualiza.
-        - Si hay mezcla -> Cabecera se limpia.
-        """
-        # Filtramos líneas que tengan proyecto (ignoramos secciones/notas o líneas vacías)
-        valid_lines = self.order_line.filtered(
-            lambda l: l.project_id and not l.display_type)
-
-        if not valid_lines:
-            return
-
-        projects = valid_lines.mapped('project_id')
-        tasks = valid_lines.mapped('task_id')
-
-        # Lógica para Proyecto
-        if len(projects) == 1:
-            if self.project_id != projects[0]:
-                self.project_id = projects[0]
-        elif len(projects) > 1:
-            # Mixto
-            self.project_id = False
-
-        # Lógica para Tarea
-        if len(tasks) == 1:
-            if self.task_order_id != tasks[0]:
-                self.task_order_id = tasks[0]
-        elif len(tasks) > 1:
-            # Mixto
-            self.task_order_id = False
+    # @api.onchange('order_line')
+    # def _onchange_line_projects(self):
+    #     """
+    #     DESACTIVADO: El usuario no quiere que la cabecera cambie automáticamente
+    #     basado en las líneas, ya que esto puede causar ciclos de actualización
+    #     o comportamientos confusos.
+    #     """
+    #     pass
 
     # Totales agregados (toda la orden) de cantidades pedidas/recibidas/facturadas
     qty_ordered_total = fields.Float(
@@ -162,7 +130,6 @@ class PurchaseOrderLine(models.Model):
         string='Proyecto',
         store=True,
         readonly=False,
-        required=True,
         tracking=True,
     )
 
@@ -170,9 +137,8 @@ class PurchaseOrderLine(models.Model):
     task_id = fields.Many2one(
         'project.task',
         string='Tarea',
-        domain="project_id and [('project_id', '=', project_id), ('state', 'not in', ['1_canceled'])] or [('state', 'not in', ['1_canceled'])]",
+        domain="project_id and [('project_id', '=', project_id), ('state', 'not in', ['1_done', '1_canceled'])] or [('state', 'not in', ['1_done', '1_canceled'])]",
         readonly=False,
-        required=True,
         tracking=True,
     )
 
@@ -259,7 +225,7 @@ class PurchaseOrderLine(models.Model):
         for val in res:
 
             pass
-
+            
         for val in res:
             if val.get('purchase_line_id'):
                 line = self.browse(val['purchase_line_id'])
@@ -267,7 +233,5 @@ class PurchaseOrderLine(models.Model):
                     val['project_id'] = line.project_id.id
                 if line.task_id:
                     val['task_id'] = line.task_id.id
-                # if line.analytic_distribution:
-                    # val['analytic_distribution'] = line.analytic_distribution
 
         return res

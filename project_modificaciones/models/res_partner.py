@@ -37,11 +37,3 @@ class ResPartner(models.Model):
             else:
                 # Empresa o contacto sin padre: comportamiento normal
                 super(ResPartner, partner)._compute_display_name()
-
-    # Centro de Costo
-    centro_costo = fields.Many2one(
-        'account.analytic.account',
-        string="Centro de Costo",
-        help="Centro de Costo al que pertenece el cliente",
-        tracking=True,
-    )

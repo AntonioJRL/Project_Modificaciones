@@ -22,5 +22,11 @@ class ProjectTaskRechazado(models.TransientModel):
             'approval_state': 'rejected',
             'stage_id': self.env.ref('project_modificaciones.project_task_type_obra_rejected').id,
         })
-        task.notify_rejection(self.razon)
         task._mark_approval_activity_done()
+        task.message_post(
+            body= Markup("<b>🚫 TAREA RECHAZADA</b><br/>"
+                         "<b>POR:</b> %s <br/>"
+                         "<b>MOTIVO:</b> %s "
+                         ) % (self.env.user.name, self.razon),
+            subtype_xmlid="mail.mt_note",
+        )

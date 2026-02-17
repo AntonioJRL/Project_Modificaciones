@@ -260,8 +260,14 @@ class ProjectSubUpdate(models.Model):
                 vals["name"] = f"{date_str}{i+1:02d}"
 
         records = super().create(vals_list)
+
         # Llama a la lógica de creación de tareas después de crear los registros
         records._try_create_preliminary_task()
+
+        # Force recompute of task state for completion logic
+        for record in records:
+            if record.task_id:
+                record.task_id._update_completion_state_side_effects()
 
         return records
 
@@ -1017,6 +1023,21 @@ class ProjectSubUpdate(models.Model):
             u.project_id = u.env["project.project"].search(
                 [("id", "=", u.projid)], limit=1
             )
+
+    def write(self, vals):
+        res = super(ProjectSubUpdate, self).write(vals)
+        if 'unit_progress' in vals or 'task_id' in vals:
+            for record in self:
+                if record.task_id:
+                    record.task_id._update_completion_state_side_effects()
+        return res
+
+    def unlink(self):
+        tasks = self.mapped('task_id')
+        res = super(ProjectSubUpdate, self).unlink()
+        for task in tasks:
+            task._update_completion_state_side_effects()
+        return res
 
     @api.model
     def _chosen_tasks(self):

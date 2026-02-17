@@ -6,25 +6,20 @@
         <field name="inherit_id" ref="sale.view_order_form" />
         <field name="arch" type="xml">
 
-            <!--Agrega
-            un campo proyecto que nos permite redireccionar la tarea a un proyecto en especifico -->
+            <!--Agrega un campo proyecto que nos permite redireccionar la tarea a un proyecto en especifico -->
             <xpath expr="//field[@name='order_line']//tree//field[@name='product_template_id']"
                 position="after">
                 <field name="order_partner_id" invisible="0" />
-                <field name="project_line_id" string="Proyecto" optional="show"
-                    column_invisible="parent.state not in 'sale'" />
+                <field name="project_line_id" string="Proyecto" optional="show" column_invisible="parent.state not in 'sale'"/>
             </xpath>
 
-            <!--Agrega
-            un campo partida para mostrar que partida pertenece la linea de orden de venta-->
+            <!--Agrega un campo partida para mostrar que partida pertenece la linea de orden de venta-->
             <xpath expr="//field[@name='order_line']//tree//field[@name='sequence']"
                 position="after">
-                <field name="position" string="Partida" width="80" optional="show" readonly="1" />
+                <field name="position" string="Partida" width="80" optional="show" readonly="1"/>
             </xpath>
 
-            <!--Dominio
-            Ayuda A Filtrar los Productos En Base Al Cliente (Mostrara Solo los productos del
-            cliente seleccionado y los productos que no tienen cliente)-->
+            <!--Dominio Ayuda A Filtrar los Productos En Base Al Cliente (Mostrara Solo los productos del cliente seleccionado y los productos que no tienen cliente)-->
             <xpath expr="//field[@name='order_line']//tree//field[@name='product_template_id']"
                 position="attributes">
                 <attribute name="domain">

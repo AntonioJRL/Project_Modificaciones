@@ -117,6 +117,12 @@ class SaleOrder(models.Model):
         compute="_compute_project_ids",
         store=True,   # ← OBLIGATORIO en Odoo 17
     )
+    
+    show_project_button = fields.Boolean(
+        compute='_compute_project_ids',
+        store=False,
+        string='Show Project Button'
+    )
 
     subtask_count = fields.Integer(
         compute='_compute_task_counts', string='Subtask Count')
@@ -248,16 +254,20 @@ class SaleOrder(models.Model):
                 "target": "current",
             }
 
-    @api.depends('order_line.task_id.project_id', 'project_id')
+
+    @api.depends('tasks_ids.project_id', 'project_id')
     def _compute_project_ids(self):
         for order in self:
-            projects = order.order_line.mapped("task_id.project_id")
+            projects = order.tasks_ids.mapped("project_id")
             order.project_ids = projects
 
             # Logic merged from the old _compute_project_count
             # Correction: Count ALL unique projects (Lines + Header)
             all_projects = projects | order.project_id
             order.project_count = len(all_projects)
+
+            # Ensure the button is shown if there are projects
+            order.show_project_button = order.project_count > 0 or order.project_id
 
 
 class Origen(models.Model):

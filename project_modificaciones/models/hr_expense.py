@@ -11,18 +11,15 @@ class HrExpense(models.Model):
 
     # Enlace al proyecto relacionado al gasto
     project_id = fields.Many2one(
-        'project.project',
+        'project.project', 
         string='Proyecto',
-        required=True,
         tracking=True,
     )
 
     # Enlace opcional a la tarea relacionada al gasto
     task_id = fields.Many2one(
-        'project.task',
+        'project.task', 
         string='Tarea',
-        domain="project_id and [('project_id', '=', project_id), ('state', 'not in', ['1_canceled'])] or [('state', 'not in', ['1_canceled'])]",
-        required=True,
         tracking=True,
     )
 

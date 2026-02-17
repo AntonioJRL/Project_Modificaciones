@@ -1,19 +1,15 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 
-
 class PendingServiceWizard(models.TransientModel):
     _name = 'pending.service.wizard'
     _description = 'Asistente de Registro de Avance'
 
-    service_id = fields.Many2one(
-        'pending.service', string='Servicio Origen', required=True, readonly=True)
-    date = fields.Date(string='Fecha del Avance',
-                       default=fields.Date.context_today, required=True)
-
+    service_id = fields.Many2one('pending.service', string='Servicio Origen', required=True, readonly=True)
+    date = fields.Date(string='Fecha del Avance', default=fields.Date.context_today, required=True)
+    
     # Cambiamos de Many2many a One2many con un modelo intermedio para permitir edición
-    wizard_line_ids = fields.One2many(
-        'pending.service.wizard.line', 'wizard_id', string='Líneas a procesar')
+    wizard_line_ids = fields.One2many('pending.service.wizard.line', 'wizard_id', string='Líneas a procesar')
 
     @api.model
     def default_get(self, fields_list):
@@ -24,7 +20,7 @@ class PendingServiceWizard(models.TransientModel):
             res['service_id'] = service.id
             if service.date:
                 res['date'] = service.date
-
+            
             # Pre-cargar líneas creando registros en memoria (NewId) o lista de diccionarios
             lines_data = []
             for line in service.service_line_ids.filtered(lambda l: l.task_id):
@@ -35,7 +31,7 @@ class PendingServiceWizard(models.TransientModel):
                     'task_id': line.task_id.id,
                     'quantity_original': line.quantity,
                     'quantity_available': line.quantity - line.total_avances,
-                    'quantity_to_report': 0.0,  # Por defecto 0 obligando al usuario a capturar
+                    'quantity_to_report': 0.0, # Por defecto 0 obligando al usuario a capturar
                 }))
             res['wizard_line_ids'] = lines_data
         return res
@@ -119,21 +115,17 @@ class PendingServiceWizard(models.TransientModel):
             'target': 'current',
         }
 
-
 class PendingServiceWizardLine(models.TransientModel):
     _name = 'pending.service.wizard.line'
     _description = 'Línea de Asistente de Registro de Avance'
 
-    wizard_id = fields.Many2one(
-        'pending.service.wizard', string='Wizard', ondelete='cascade')
-    service_line_id = fields.Many2one(
-        'pending.service.line', string='Línea Original', required=True, readonly=True)
-
+    wizard_id = fields.Many2one('pending.service.wizard', string='Wizard', ondelete='cascade')
+    service_line_id = fields.Many2one('pending.service.line', string='Línea Original', required=True, readonly=True)
+    
     partida = fields.Integer(string='Partida', readonly=True)
     task_id = fields.Many2one('project.task', string='Tarea', readonly=True)
-    product_id = fields.Many2one(
-        'product.product', string='Producto', readonly=True)
-
+    product_id = fields.Many2one('product.product', string='Producto', readonly=True)
+    
     quantity_original = fields.Float(string='Cant. Total', readonly=True)
     quantity_available = fields.Float(string='Cant. Disponible', readonly=True)
     quantity_to_report = fields.Float(string='Cant. a Reportar', required=True)

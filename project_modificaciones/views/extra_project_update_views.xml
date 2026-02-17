@@ -129,7 +129,7 @@
                                             <field name="oc_pedido" />
                                             <field name="ct" options="{'no_quick_create': True, 'no_create_edit': False}" />
                                             <field name="especialidad_trabajo" />
-                                            <field name="serv_assig" widget="selection_badge"/>
+Omae wa mō shindeiru                                           <field name="serv_assig" widget="selection_badge"/>
                                         </group>
 
                                         <group>
@@ -209,6 +209,7 @@
                                         </group>
                                         <group>
                                             <field name="om" />
+                                            <field name="numlic"/>
                                             <field name="cot" />
                                             <field name="avanceparc" readonly="0" />
                                             <field name="factura" options="{'no_edit': True, 'no_create': True}" readonly="0" />
@@ -235,10 +236,12 @@
                                 </sheet>
                             </form>
                             
-                            <tree delete="false">
+                            <tree delete="false" expand="1" groupby="sale_order_id">
                                 <control>
                                     <create name="add_update_task" string="Crear Avance" />
                                 </control>
+                                <field name="sale_order_id" optional="show" readonly="1"/>
+                                <field name="pending_service_id" optional="show" readonly="1"/>
                                 <field name="partida_linea" optional="show" />
                                 <field name="date" />
                                 <field name="task_id" optional="show" />
@@ -319,6 +322,10 @@
                     domain="[('sub_update_ids', '!=', False)]" />
                 <filter string="Sin Avances" name="without_advances"
                     domain="[('sub_update_ids', '=', False)]" />
+                <group expand="0" string="Agrupar por">
+                    <filter string="Fecha" name="group_by_date" context="{'group_by': 'date'}"/>
+                    <filter string="Pedido" name="group_by_sale_order" context="{'group_by': 'sale_order_id'}"/>
+                </group>
             </xpath>
         </field>
     </record>

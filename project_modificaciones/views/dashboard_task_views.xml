@@ -149,9 +149,9 @@
                                 <tr>
                                     <th>Concepto</th>
                                     <th></th>
-                                    <th class="text-center">Facturado</th>
-                                    <th class="text-center">Por Facturar</th>
-                                    <th class="text-center">Esperado</th>
+                                    <th class="text-center">Realizado</th>
+                                    <th class="text-center">Pendiente</th>
+                                    <th class="text-center">Total Esperado</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -295,7 +295,7 @@
                                 <tr class="bg-light">
                                     <td class="ps-4 fw-bold">Total Costos</td>
                                     <td></td>
-                                    <td class="fw-bold text-center text-danger">
+                                    <td class="fw-bold text-center">
                                         <t
                                             t-out="format_monetary(-profitability['total_facturado'])" />
                                     </td>
@@ -394,7 +394,7 @@
                                     </td>
 
                                     <td class="text-center">
-                                        <span class="fw-bold text-dark"
+                                        <span class="fw-bold text-secondary"
                                             style="font-size: 0.85rem;" t-esc="move['requisition']" />
                                     </td>
                                     <td class="text-center text-muted">

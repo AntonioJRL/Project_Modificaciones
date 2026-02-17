@@ -198,11 +198,15 @@ class Project(models.Model):
         if self.sale_order_id:
             orders |= self.sale_order_id
 
-        # 2. Órdenes de las tareas
-        # Buscamos tareas que tengan sale_order_id
-        tasks_with_so = self.task_ids.filtered(lambda t: t.sale_order_id)
-        if tasks_with_so:
-            orders |= tasks_with_so.mapped('sale_order_id')
+        # 2. Órdenes de las tareas (Incluyendo archivadas/finalizadas)
+        # Usamos search con active_test=False para incluir todas las tareas históricas
+        all_tasks = self.env['project.task'].with_context(active_test=False).search([
+            ('project_id', '=', self.id)
+        ])
+
+        tasks_with_line = all_tasks.filtered(lambda t: t.sale_line_id)
+        if tasks_with_line:
+            orders |= tasks_with_line.mapped('sale_line_id.order_id')
 
         return orders
 

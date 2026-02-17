@@ -145,7 +145,7 @@
         sequence="5"
     />
 
-    <!-- Inicio de Menú Reclassification-->
+    <!-- Inicio de Menú Reclassification
     <menuitem
         name="Reclasificación"
         id="menu_recla"
@@ -160,7 +160,7 @@
         action="action_project_change_wizard"
         sequence="1"
     />
-    <!-- Fin de Menú Reclassification-->
+    Fin de Menú Reclassification-->
 
     <!-- Inicio de Menú Reportes -->
     <menuitem

@@ -21,7 +21,27 @@ class ProjectProfitabilityReport(models.TransientModel):
                                    default=_default_project_ids,
                                    required=True, domain="[('is_proyecto_obra', '=', True)]", help="Proyectos a los cuales se les realizará la revisión de rentabilidad.")
 
-    # Filtros
+    # Nombre
+    name = fields.Char(string='Nombre', compute='_compute_nombre')
+
+    @api.depends('project_ids')
+    def _compute_nombre(self):
+        """Calcula el nombre del reporte basado en los proyectos seleccionados."""
+        for wizard in self:
+            if not wizard.project_ids:
+                wizard.name = 'Dashboard: Sin Proyecto'
+            elif len(wizard.project_ids) == 1:
+                wizard.name = f"Dashboard Proyecto: {wizard.project_ids.display_name}"
+            else:
+                # Limitar a 3 nombres para evitar títulos demasiado largos
+                names = wizard.project_ids.mapped('name')
+                if len(names) > 3:
+                    display_text = f"{', '.join(names[:3])} (+{len(names)-3})"
+                else:
+                    display_text = ", ".join(names)
+                wizard.name = f"Dashboard Proyectos: {display_text}"
+
+    # Filtros Principales
     filter_type = fields.Selection([
         ('all', 'Todas las Tareas'),
         ('filter', 'Selección Manual')
@@ -31,20 +51,30 @@ class ProjectProfitabilityReport(models.TransientModel):
                                 domain="[('project_id', 'in', project_ids)]")
 
     task_state_filter = fields.Selection([
-        ('open', 'Abiertas (No canceladas/Hecho)'),
-        ('done', 'Hecho'),
-        ('all_active', 'Todas Activas')
-    ], string="Estado de Tareas", default='open')
+        ('all', 'Todas'),
+        ('01_in_progress', 'En Proceso'),
+        ('1_done', 'Hecho'),
+        ('1_canceled', 'Cancelado'),
+        ('04_waiting_normal', 'Esperando'),
+        ('03_approved', 'Aprobado'),
+        ('02_changes_requested', 'Cambios Solicitados'),
+    ], string="Estado de Tareas", default='all')
 
     include_archived = fields.Boolean(
-        string='Tareas Archivadas', default=False,
-        help="Si se marca, se incluirán las tareas archivadas en el análisis.")
+        string="Incluir Tareas Archivadas", default=False)
+
+    include_analytic_account = fields.Boolean(
+        string="Incluir por Cuenta Analítica",
+        default=True,
+        help="Si está activo, busca también registros vinculados a la Cuenta Analítica del Proyecto, no solo al Proyecto directamente."
+    )
 
     # Filtros de Fecha
     chart_type = fields.Selection([
-        ('pie', 'Gráfico de Donut'),
-        ('waterfall', 'Gráfico de Columnas'),
-        ('line', 'Evolución Temporal')
+        ('pie', 'Gráfico de Costos'),
+        ('waterfall', 'Cascada de Rentabilidad'),
+        ('line', 'Evolución Temporal'),
+        ('top_tasks', 'Top 10 Tareas')
     ], string='Tipo de Gráfico', default='pie', required=True)
 
     date_filter_type = fields.Selection([
@@ -107,6 +137,8 @@ class ProjectProfitabilityReport(models.TransientModel):
         string='Requisiciones', compute='_compute_stats')
     stock_move_count = fields.Integer(
         string='Mov. Almacén', compute='_compute_stats')
+    compensation_count = fields.Integer(
+        string='Compensaciones', compute='_compute_stats')
 
     # Nuevo: Costos Comprometidos y KPIs
     purchase_committed = fields.Monetary(
@@ -144,12 +176,13 @@ class ProjectProfitabilityReport(models.TransientModel):
 
     @api.onchange('filter_type', 'task_ids', 'task_state_filter',
                   'date_filter_type', 'date_from', 'date_to',
-                  'include_archived', 'chart_type', 'ubicacion_ids')
+                  'include_archived', 'chart_type', 'ubicacion_ids',
+                  'include_analytic_account')
     def _onchange_filters(self):
         """
-        Triggered when any filter changes in the UI. 
-        We simply call the compute methods manually to update the values in the view
-        before the user saves.
+        Se ejecuta cuando cambia cualquier filtro en la interfaz.
+        Recalcula manualmente las métricas y el contenido para actualizar la vista
+        antes de que el usuario guarde.
         """
         self._compute_stats()
         self._compute_profitability()
@@ -188,14 +221,17 @@ class ProjectProfitabilityReport(models.TransientModel):
 
     @api.depends('project_ids', 'filter_type', 'task_ids', 'task_state_filter', 'include_archived')
     def _get_filtered_tasks(self):
-        """Retorna el recordset de tareas basado en los filtros"""
+        """
+        Retorna el recordset de tareas basado en los filtros aplicados.
+        Este método es la FUENTE DE VERDAD para qué tareas se consideran en el análisis.
+        """
         self.ensure_one()
         if not self.project_ids:
             return self.env['project.task']
 
         domain = [('project_id', 'in', self.project_ids.ids)]
 
-        # Filtro por Ubicacion
+        # Filtro por Ubicación
         if self.ubicacion_ids:
             domain.append(
                 ('project_id.ubicacion', 'in', self.ubicacion_ids.ids))
@@ -212,84 +248,282 @@ class ProjectProfitabilityReport(models.TransientModel):
             if self.task_ids:
                 return self.task_ids
 
-        # Filtro por estado predefinido active/done/etc
-        if self.task_state_filter == 'open':
-            domain.append(('state', 'not in', ['1_canceled', '1_done']))
-        elif self.task_state_filter == 'done':
-            domain.append(('state', '=', '1_done'))
-        elif self.task_state_filter == 'all_active':
+        # Filtro por estado predefinido (En Proceso, Hecho, etc.)
+        if self.task_state_filter == 'all':
             domain.append(('state', '!=', '1_canceled'))
+        elif self.task_state_filter:
+            # Mapeo directo para estados específicos
+            domain.append(('state', '=', self.task_state_filter))
 
         return Task.search(domain)
 
-    @api.depends('project_ids', 'filter_type', 'task_ids', 'task_state_filter', 'date_filter_type', 'date_from', 'date_to', 'include_archived')
-    def _compute_stats(self):
-        for wizard in self:
-            tasks = wizard._get_filtered_tasks()
-            # Incluir subtareas en el analisis de metricas
-            all_tasks = tasks | tasks.mapped('child_ids')
+    def _get_sale_order_lines(self):
+        """Retorna las Líneas de Venta específicas vinculadas al proyecto/tareas."""
+        self.ensure_one()
+        tasks = self._get_filtered_tasks()
+        all_tasks = tasks | tasks.mapped('child_ids')
 
-            # Contamos tareas padre seleccionadas
-            wizard.task_count = len(tasks)
+        final_domain = [('state', 'in', ['sale', 'done'])]
 
-            # Timesheets
-            timesheet_domain = [
-                ('task_id', 'in', all_tasks.ids),
-                ('project_id', '!=', False)
-            ] + wizard._get_date_domain('date')
+        # Date Filter (Applied to Order Date)
+        if self.date_filter_type != 'none':
+            if self.date_from:
+                final_domain.append(
+                    ('order_id.date_order', '>=', self.date_from))
+            if self.date_to:
+                final_domain.append(
+                    ('order_id.date_order', '<=', self.date_to))
 
-            # Optimización: Usamos read_group para sumar unit_amount directamente en DB
-            # si solo necesitamos la suma de horas.
-            timesheet_data = self.env['account.analytic.line'].read_group(
-                timesheet_domain, ['unit_amount:sum'], [])
-            wizard.timesheet_hours = timesheet_data[0]['unit_amount'] if timesheet_data else 0.0
+        # Criterios Principales
+        # 1. Vinculado a Tarea
+        # 2. Vinculado a Proyecto (Cabecera o Línea)
+        # 3. Vinculado a Cuenta Analítica (Híbrido)
 
-            # Sale Orders
-            # Apply date filter only if relevant, otherwise just count tasks related sales
-            # For simplicity we apply filter to orders if generic date filter is active
-            so_domain = [('id', 'in', all_tasks.mapped(
-                'sale_order_id').ids)] + wizard._get_date_domain('date_order')
-            wizard.sale_order_count = self.env['sale.order'].search_count(
-                so_domain)
+        # Base: Vinculado a tareas filtradas
+        criteria = [('task_id', 'in', all_tasks.ids)]
 
-            # Purchase Orders
-            # Optimización: Buscar directamente sobre purchase.order en lugar de purchase.order.line para evitar distinct en memoria
-            po_domain = [
-                ('order_line.task_id', 'in', all_tasks.ids),
-                ('state', 'in', ('purchase', 'done')),
-            ] + wizard._get_date_domain('date_order')
-            wizard.purchase_count = self.env['purchase.order'].search_count(
-                po_domain)
+        # Contexto de Proyectos
+        projects = self.project_ids
+        if self.ubicacion_ids:
+            projects = projects.filtered(
+                lambda p: p.ubicacion in self.ubicacion_ids)
 
-            # Expenses
-            expense_domain = [
-                ('task_id', 'in', all_tasks.ids),
-                ('sheet_id.state', 'in', ['approve', 'post', 'done'])
-            ] + wizard._get_date_domain('date')
+        if projects:
+            # Opción A: Vinculación Directa por Proyecto
+            project_domain = [('order_id.project_id', 'in', projects.ids)]
+            if 'project_id' in self.env['sale.order.line']._fields:
+                project_domain.append(('project_id', 'in', projects.ids))
 
-            wizard.expense_count = self.env['hr.expense'].search_count(
-                expense_domain)
+            # Opción B: Vinculación por Cuenta Analítica (Si está activo)
+            analytic_domain = []
+            if self.include_analytic_account:
+                analytics = projects.mapped('analytic_account_id')
+                if analytics:
+                    # Verificar campos disponibles en SOL y SO
+                    if 'analytic_account_id' in self.env['sale.order']._fields:
+                        analytic_domain.append(
+                            ('order_id.analytic_account_id', 'in', analytics.ids))
 
-            # Requisiciones
-            req_date_field = 'date_start' if 'date_start' in self.env[
-                'employee.purchase.requisition']._fields else 'create_date'
-            requisition_domain = [
-                ('task_id', 'in', all_tasks.ids),
-                ('state', 'not in', ['cancelled', 'new'])
-            ] + wizard._get_date_domain(req_date_field)
+                    # Odoo 17 usa analytic_distribution (JSON), búsqueda difícil por ORM simple.
+                    # Buscamos campos legacy o custom si existen.
+                    if 'analytic_account_id' in self.env['sale.order.line']._fields:
+                        analytic_domain.append(
+                            ('analytic_account_id', 'in', analytics.ids))
 
-            wizard.requisition_count = self.env['employee.purchase.requisition'].search_count(
-                requisition_domain)
+            # Combinar lógica: (Tarea) O (Proyecto) O (Analítica)
+            # Pero la estructura es search([ (Base_Filtros_Globales) AND ( (Tarea) OR (Proyecto) OR (Analítica) ) ])
+            # Aquí 'criteria' es una lista de condiciones OR.
 
-            # Stock Moves
-            move_domain = [
-                ('task_id', 'in', all_tasks.ids),
-                ('state', 'in', ['confirmed', 'assigned',
-                 'partially_available', 'done'])
-            ] + wizard._get_date_domain('date')
+            # Agregamos dominios de proyecto a criteria
+            criteria.extend(project_domain)
 
-            wizard.stock_move_count = self.env['stock.move'].search_count(
-                move_domain)
+            # Agregamos dominios analíticos a criteria
+            criteria.extend(analytic_domain)
+
+        # Construir dominio OR global para los criterios de vinculación
+        # filter_domain AND ( Criterio1 OR Criterio2 OR ... )
+        link_domain = []
+        if len(criteria) > 1:
+            link_domain = ['|'] * (len(criteria) - 1)
+        link_domain += criteria
+
+        # Combinar con dominio base (Estados y Fechas ya están en final_domain)
+        # final_domain = [Conditions]
+        # Queremos: final_domain AND link_domain
+
+        return self.env['sale.order.line'].search(final_domain + link_domain)
+
+    def _get_sale_orders(self):
+        """Retorna las órdenes de venta distintas derivadas de las líneas"""
+        return self._get_sale_order_lines().mapped('order_id')
+
+    def _get_purchase_order_lines(self):
+        """Retorna las Líneas de Compra específicas"""
+        self.ensure_one()
+        tasks = self._get_filtered_tasks()
+        all_tasks = tasks | tasks.mapped('child_ids')
+
+        # El estado de línea usualmente coincide con la orden, pero es más seguro verificar la orden.
+        # POL no siempre tiene 'state'. PO sí.
+        # En realidad purchase.order.line tiene 'state' relacionado a order.state usualmente.
+        # Pero verifiquemos order_id.state en el dominio para alinearnos al estándar.
+        final_domain = [('order_id.state', 'in', ['purchase', 'done'])]
+
+        if self.date_filter_type != 'none':
+            if self.date_from:
+                final_domain.append(
+                    ('order_id.date_order', '>=', self.date_from))
+            if self.date_to:
+                final_domain.append(
+                    ('order_id.date_order', '<=', self.date_to))
+
+        # Criterios Principales
+        # 1. Vinculado a Tarea
+        # 2. Vinculado a Proyecto
+        # 3. Vinculado a Cuenta Analítica (Híbrido)
+
+        # Base: Vinculado a tareas filtradas
+        criteria = [('task_id', 'in', all_tasks.ids)]
+
+        # Contexto de Proyectos
+        projects = self.project_ids
+        if self.ubicacion_ids:
+            projects = projects.filtered(
+                lambda p: p.ubicacion in self.ubicacion_ids)
+
+        if projects:
+            # Opción A: Vinculación Directa por Proyecto
+            project_domain = [('order_id.project_id', 'in', projects.ids)]
+            if 'project_id' in self.env['purchase.order.line']._fields:
+                project_domain.append(('project_id', 'in', projects.ids))
+
+            # Opción B: Vinculación por Cuenta Analítica (Si está activo)
+            analytic_domain = []
+            if self.include_analytic_account:
+                analytics = projects.mapped('analytic_account_id')
+                if analytics:
+                    # Verificar campos disponibles en POL y PO
+                    if 'analytic_account_id' in self.env['purchase.order.line']._fields:
+                        analytic_domain.append(
+                            ('analytic_account_id', 'in', analytics.ids))
+
+                    # A veces la cuenta analítica está en la cabecera (custom)
+                    if 'analytic_account_id' in self.env['purchase.order']._fields:
+                        analytic_domain.append(
+                            ('order_id.analytic_account_id', 'in', analytics.ids))
+
+            # Combinar lógica: (Tarea) O (Proyecto) O (Analítica)
+            criteria.extend(project_domain)
+            criteria.extend(analytic_domain)
+
+        # Construir dominio OR global
+        link_domain = []
+        if len(criteria) > 1:
+            link_domain = ['|'] * (len(criteria) - 1)
+        link_domain += criteria
+
+        return self.env['purchase.order.line'].search(final_domain + link_domain)
+
+    def _get_purchase_orders(self):
+        return self._get_purchase_order_lines().mapped('order_id')
+
+    def _get_stock_moves(self):
+        """Retorna los Movimientos de Almacén específicos"""
+        self.ensure_one()
+        tasks = self._get_filtered_tasks()
+        all_tasks = tasks | tasks.mapped('child_ids')
+
+        final_domain = [('state', '=', 'done')]
+
+        if self.date_filter_type != 'none':
+            if self.date_from:
+                final_domain.append(('date', '>=', self.date_from))
+            if self.date_to:
+                final_domain.append(('date', '<=', self.date_to))
+
+        criteria = [('task_id', 'in', all_tasks.ids)]
+        # Filtrar proyectos por Ubicación
+        projects = self.project_ids
+        if self.ubicacion_ids:
+            projects = projects.filtered(
+                lambda p: p.ubicacion in self.ubicacion_ids)
+
+        if projects:
+            criteria.append(
+                ('picking_id.project_id', 'in', projects.ids))
+            if 'project_id' in self.env['stock.move']._fields:
+                criteria.append(('project_id', 'in', projects.ids))
+
+        if len(criteria) > 1:
+            final_domain += ['|'] * (len(criteria) - 1)
+        final_domain += criteria
+
+        return self.env['stock.move'].search(final_domain)
+
+    def _get_timesheets(self):
+        """Returns specific Analytic Lines (Timesheets)"""
+        self.ensure_one()
+        tasks = self._get_filtered_tasks()
+        all_tasks = tasks | tasks.mapped('child_ids')
+
+        # Base Domain
+        domain = []
+
+        # 1. Contexto de Proyecto
+        projects = self.project_ids
+        if self.ubicacion_ids:
+            projects = projects.filtered(
+                lambda p: p.ubicacion in self.ubicacion_ids)
+
+        if projects:
+            domain.append(('project_id', 'in', projects.ids))
+
+        # 2. Lógica de Tareas / Huérfanos
+        # Si se seleccionan tareas específicas, filtramos estrictamente por ellas.
+        # Si NO se seleccionan tareas (Filtro 'Todas'), queremos incluir "Huérfanos" (Timesheets sin Tarea)
+        # porque son parte del costo del proyecto.
+        if self.task_ids:
+            # Tareas específicas seleccionadas -> Filtro estricto
+            domain.append(('task_id', 'in', all_tasks.ids))
+        else:
+            # Sin tareas específicas -> Permitir TODOS los timesheets del proyecto
+            # Confiamos en el filtro project_id agregado en el paso 1.
+            # NO filtramos por task_id aquí para obtener task_id=False (huérfanos) Y task_id=Cualquiera (vinculados).
+            # Instrucción de usuario: "Si el usuario NO ha filtrado tareas específicas... permite que task_id sea False o cualquiera."
+            pass
+
+        # 3. Date Filter
+        if self.date_filter_type != 'none':
+            if self.date_from:
+                domain.append(('date', '>=', self.date_from))
+            if self.date_to:
+                domain.append(('date', '<=', self.date_to))
+
+        return self.env['account.analytic.line'].sudo().search(domain)
+
+    def _get_compensations(self):
+        """Retorna las Líneas de Compensación específicas"""
+        self.ensure_one()
+        tasks = self._get_filtered_tasks()
+        all_tasks = tasks | tasks.mapped('child_ids')
+
+        # Dominio Base: Estado Aplicado (Solicitud estricta de usuario)
+        domain = [('compensation_id.state', '=', 'applied')]
+
+        # Vínculo Tarea / Proyecto
+        # Verificar si project_id existe en compensation.line
+        has_project = 'project_id' in self.env['compensation.line']._fields
+
+        if has_project:
+            # Lógica Inclusiva similar a Timesheets
+            projects = self.project_ids
+            if self.ubicacion_ids:
+                projects = projects.filtered(
+                    lambda p: p.ubicacion in self.ubicacion_ids)
+
+            # (Tarea en Filtradas) O (Proyecto en Proyectos Y Tarea es False)
+            domain.append('|')
+            domain.append(('task_id', 'in', all_tasks.ids))
+            domain.append('&')
+            domain.append(('project_id', 'in', projects.ids))
+            domain.append(('task_id', '=', False))
+        else:
+            # Fallback a solo vínculo de Tarea
+            domain.append(('task_id', 'in', all_tasks.ids))
+
+        # Filtro de Fecha
+        # compensation.line podría no tener 'date', verificar campo o usar create_date
+        date_field = 'create_date'
+        if 'date' in self.env['compensation.line']._fields:
+            date_field = 'date'
+
+        if self.date_filter_type != 'none':
+            if self.date_from:
+                domain.append((date_field, '>=', self.date_from))
+            if self.date_to:
+                domain.append((date_field, '<=', self.date_to))
+
+        return self.env['compensation.line'].search(domain)
 
     def _get_profitability_data(self, projects, date_from, date_to):
         """
@@ -299,50 +533,17 @@ class ProjectProfitabilityReport(models.TransientModel):
         if not projects:
             return defaultdict(float)
 
-        # Filtros de tareas (reutilizamos logica de filtro de tareas pero aplicada al set de proyectos)
-        # Nota: self.task_ids y filtros de estado afectan qué tareas se consideran.
-        # Si projects cambia, debemos asegurar que las tareas sean de esos proyectos.
-        # Para simplificar y dado que el filtro de ubicación afecta a 'projects',
-        # asumimos que 'projects' ya incluye el filtro de ubicación.
-        # Sin embargo, 'self._get_filtered_tasks()' usa 'self.project_ids'.
-        # Si estamos calculando para 'self.project_ids', usamos _get_filtered_tasks.
-
-        # Lógica:
-        # 1. Obtener tareas relevantes para estos proyectos, aplicando filtros de estado/archivo
-        domain = [('project_id', 'in', projects.ids)]
-
-        # Mismos filtros que en _get_filtered_tasks
-        if self.include_archived:
-            context = self.env.context.copy()
-            context['active_test'] = False
-            Task = self.env['project.task'].with_context(context)
-        else:
-            Task = self.env['project.task']
-
-        if self.filter_type == 'filter':
-            # Si hay selección manual, interceptamos solo las que pertenezcan a los proyectos dados
-            if self.task_ids:
-                domain.append(('id', 'in', self.task_ids.ids))
-
-        if self.task_state_filter == 'open':
-            domain.append(('state', 'not in', ['1_canceled', '1_done']))
-        elif self.task_state_filter == 'done':
-            domain.append(('state', '=', '1_done'))
-        elif self.task_state_filter == 'all_active':
-            domain.append(('state', '!=', '1_canceled'))
-
-        tasks = Task.search(domain)
-        all_task_ids = (tasks | tasks.mapped('child_ids')).ids
-        all_tasks = self.env['project.task'].browse(all_task_ids)
+        # Los helpers usan self.project_ids. Asumimos que projects pasado aquí == self.project_ids
+        # o aceptamos que los helpers usan el contexto del wizard.
 
         target_currency = self.currency_id
         company_currency = self.env.company.currency_id
 
-        # Helper para conversion con fecha especifica
+        # Helper para conversión con fecha específica
         def convert(amount, src_curr, date):
             return self._convert_amount(amount, src_curr, target_currency, date)
 
-        # Helper para dominio de fechas dinamico
+        # Helper para dominio de fechas dinámico (Uso local para Facturas)
         def get_date_domain(field_name):
             d_dom = []
             if date_from:
@@ -352,7 +553,7 @@ class ProjectProfitabilityReport(models.TransientModel):
             return d_dom
 
         # --- INGRESOS ---
-        sols = all_tasks.mapped('sale_line_id')
+        sols = self._get_sale_order_lines()
         expected = sum(convert(sol.price_subtotal, sol.currency_id, None)
                        for sol in sols)
 
@@ -362,91 +563,135 @@ class ProjectProfitabilityReport(models.TransientModel):
         invoiced = sum(convert(l.price_subtotal, l.currency_id,
                        l.move_id.invoice_date) for l in posted_lines)
 
+        # To Invoice logic (simplified for report)
+        # We use the un-invoiced amount of the filtered SOLs
         to_invoice = 0.0
         for sol in sols:
-            qty_to_inv = sol.qty_delivered - sol.qty_invoiced
-            amount = qty_to_inv * sol.price_unit
-            to_invoice += convert(amount, sol.currency_id, None)
+            # qty_to_invoice is natively computed
+            qty_to_inv = sol.qty_to_invoice
+            if qty_to_inv > 0:
+                amount = qty_to_inv * sol.price_unit
+                to_invoice += convert(amount, sol.currency_id,
+                                      sol.order_id.date_order)
 
-        # --- COSTOS ---
-        # 1. Gastos
-        expense_domain = [
-            ('task_id', 'in', all_task_ids),
-            ('sheet_id.state', 'in', ['approve', 'post', 'done'])
-        ] + get_date_domain('date')
-        expenses = self.env['hr.expense'].search(expense_domain)
-        total_expenses = sum(convert(getattr(exp, 'total_amount', 0.0) or getattr(exp, 'total_amount_currency', 0.0) if hasattr(
-            exp, 'total_amount_currency') else exp.unit_amount * exp.quantity, exp.currency_id, exp.date) for exp in expenses)
-        # Nota: Ajuste por compatibilidad de campos en hr.expense según versión
+        # --- 2. COSTOS ---
 
-        # 2. Compras
-        purchase_domain = [
-            ('task_id', 'in', all_task_ids),
-            ('order_id.state', 'in', ('purchase', 'done'))
-        ] + get_date_domain('date_order')
-        purchase_lines = self.env['purchase.order.line'].search(
-            purchase_domain)
+        # A. GASTOS
+        tasks = self._get_filtered_tasks()
+        all_tasks = tasks | tasks.mapped('child_ids')
+        expense_domain = self._get_expense_domain(all_tasks)
+        expenses = self.env['hr.expense'].sudo().search(expense_domain)
+
+        total_expenses = 0.0
+        for exp in expenses:
+            # Prio 1: Neto en Moneda Original (Ideal)
+            if 'untaxed_amount_currency' in self.env['hr.expense']._fields:
+                amount = exp.untaxed_amount_currency
+            # Prio 2: Neto en Moneda Compañía
+            elif 'untaxed_amount' in self.env['hr.expense']._fields:
+                amount = exp.untaxed_amount
+            # Prio 3: Fallback a Total (Bruto)
+            else:
+                amount = getattr(exp, 'total_amount_currency',
+                                 0.0) or exp.total_amount
+
+            total_expenses += convert(amount, exp.currency_id, exp.date)
+
+        # B. COMPRAS (Estricto: Incurrido vs Comprometido)
+        purchase_lines = self._get_purchase_order_lines()
 
         p_incurred = 0.0
         p_committed = 0.0
+
         for pl in purchase_lines:
             qty_done = max(pl.qty_invoiced, pl.qty_received)
             qty_ordered = pl.product_qty
-            price = pl.price_unit
+            price_subtotal = pl.price_subtotal
+            date_doc = pl.date_order
 
-            p_incurred += convert(qty_done * price,
-                                  pl.currency_id, pl.date_order)
+            if qty_ordered:
+                ratio = qty_done / qty_ordered
+            else:
+                ratio = 0.0
 
-            qty_rem = qty_ordered - qty_done
-            if qty_rem > 0:
-                p_committed += convert(qty_rem * price,
-                                       pl.currency_id, pl.date_order)
+            # Incurrido basado en el ratio del monto total (subtotal)
+            amount_incurred = price_subtotal * ratio
+
+            # Comprometido es el remanente para alcanzar el subtotal
+            amount_committed = price_subtotal - amount_incurred
+
+            # Convertir resultados a moneda del reporte
+            if amount_incurred:
+                p_incurred += convert(amount_incurred,
+                                      pl.currency_id, date_doc)
+
+            if amount_committed:
+                p_committed += convert(amount_committed,
+                                       pl.currency_id, date_doc)
 
         total_purchases = p_incurred + p_committed
 
-        # 3. Stock
-        stock_domain = [
-            ('task_id', 'in', all_task_ids),
-            ('state', 'in', ['confirmed', 'assigned',
-             'partially_available', 'done'])
-        ] + get_date_domain('date')
-        stock_moves = self.env['stock.move'].search(stock_domain)
-
+        # C. STOCK (Valoración Real desde Capas - Layers)
+        stock_moves = self._get_stock_moves()
         stock_cost = 0.0
+
         for move in stock_moves:
-            idx_cost = move.product_id.standard_price
-            qty = move.quantity if move.state == 'done' else move.product_uom_qty
-            stock_cost += convert(idx_cost * qty, company_currency, move.date)
+            # 1. Regla Anti-Duplicidad: Saltar si está vinculado a Compra
+            if move.purchase_line_id or move.picking_id.purchase_id:
+                continue
 
-        # 4. Timesheets
-        comp_domain = [
-            ('task_id', 'in', all_task_ids),
-            ('compensation_id.state', 'in', ['approve', 'applied'])
-        ]
-        comp_lines = self.env['compensation.line'].search(comp_domain)
-        ts_cost = 0.0
+            # 2. Valoración (Fuente de Verdad)
+            layers = move.stock_valuation_layer_ids
+            move_cost = 0.0
 
-        for comp in comp_lines:
-            # Filtro fecha manual en memoria pues compensation.line puede no tener index o campo directo simple
-            c_date = comp.create_date.date() if comp.create_date else False
-            if c_date:
-                if date_from and c_date < date_from:
-                    continue
-                if date_to and c_date > date_to:
-                    continue
+            if layers:
+                total_val = sum(abs(l.value) for l in layers)
+                move_cost = convert(total_val, company_currency, move.date)
+            else:
+                val_unit = move.price_unit or move.product_id.standard_price
+                qty = move.quantity if move.state == 'done' else move.product_uom_qty
+                move_cost = convert(
+                    val_unit * qty, company_currency, move.date)
 
-            ts_cost += convert(comp.total_cost,
-                               company_currency, comp.create_date)
+            # 3. Lógica Financiera de Signos
+            is_outgoing = move.location_id.usage == 'internal' and move.location_dest_id.usage != 'internal'
+            is_return = move.location_id.usage != 'internal' and move.location_dest_id.usage == 'internal'
+            # Traslados Internos (Int -> Int) son Neutros (Efecto 0 en rentabilidad)
+
+            if is_outgoing:
+                stock_cost += move_cost
+            elif is_return:
+                stock_cost -= move_cost
+            # else: traslado interno, ignorar adición de costo
+
+        # D. MANO DE OBRA (Timesheets + Compensations)
+
+        # 1. Timesheets (Líneas Analíticas)
+        timesheets = self._get_timesheets()
+        timesheet_cost_only = 0.0
+        for ts in timesheets:
+            # amount es usualmente negativo (costo). Sumamos abs().
+            timesheet_cost_only += convert(abs(ts.amount),
+                                           ts.currency_id, ts.date)
+
+        # 2. Compensations
+        # Las traemos para KPIs o potencial visualización, pero NO sumamos su costo
+        # porque ya están incluidas en las Líneas Analíticas (Timesheets) según auditoría SQL.
+        compensations = self._get_compensations()
+        compensation_cost = 0.0
+        # Bucle eliminado para evitar doble contabilidad.
+
+        timesheet_cost = timesheet_cost_only + compensation_cost
 
         # TOTALES
-        total_costs_real = total_expenses + total_purchases + stock_cost + ts_cost
+        total_costs_real = total_expenses + total_purchases + stock_cost + timesheet_cost
         margin_total = invoiced - total_costs_real
 
-        profit_pct = 0.0
+        profit_percentage = 0.0
         if invoiced:
-            profit_pct = (margin_total / invoiced) * 100.0
+            profit_percentage = (margin_total / invoiced) * 100.0
         elif expected:
-            profit_pct = (margin_total / expected) * 100.0
+            profit_percentage = (margin_total / expected) * 100.0
 
         return {
             'expected_income': expected,
@@ -457,9 +702,9 @@ class ProjectProfitabilityReport(models.TransientModel):
             'purchase_incurred': p_incurred,
             'purchase_committed': p_committed,
             'total_stock_moves': stock_cost,
-            'timesheet_cost': ts_cost,
+            'timesheet_cost': timesheet_cost,
             'margin_total': margin_total,
-            'profit_percentage': profit_pct,
+            'profit_percentage': profit_percentage,
             'total_costs': total_costs_real
         }
 
@@ -468,15 +713,9 @@ class ProjectProfitabilityReport(models.TransientModel):
                  'ubicacion_ids')
     def _compute_profitability(self):
         for wizard in self:
-            # 1. Periodo Actual
-            # Filtramos proyectos por ubicacion primero
-            projects = wizard.project_ids
-            if wizard.ubicacion_ids:
-                projects = projects.filtered(
-                    lambda p: p.ubicacion in wizard.ubicacion_ids)
-
+            # Helpers handle location filtering now (Strict Source of Truth)
             data = wizard._get_profitability_data(
-                projects, wizard.date_from, wizard.date_to)
+                wizard.project_ids, wizard.date_from, wizard.date_to)
 
             wizard.expected_income = data['expected_income']
             wizard.invoiced_income = data['invoiced_income']
@@ -507,18 +746,14 @@ class ProjectProfitabilityReport(models.TransientModel):
     def _compute_content(self):
         for wizard in self:
             tasks = wizard._get_filtered_tasks()
-            all_task_ids = (tasks | tasks.mapped('child_ids')).ids
+            all_tasks = tasks | tasks.mapped('child_ids')
+            all_task_ids = all_tasks.ids
             company_currency = wizard.env.company.currency_id
             target_currency = wizard.currency_id
 
-            # Stock Moves List
-            stock_domain = [
-                ('task_id', 'in', all_task_ids),
-                ('state', 'in', ['confirmed', 'assigned',
-                 'partially_available', 'done'])
-            ] + wizard._get_date_domain('date')
-            moves = self.env['stock.move'].search(
-                stock_domain, order='date desc')
+            # Listado de Movimientos de Stock
+            # Fuente de Verdad: Helper
+            moves = wizard._get_stock_moves().sorted('date', reverse=True)
 
             stock_moves_list = []
             state_map = {
@@ -531,22 +766,63 @@ class ProjectProfitabilityReport(models.TransientModel):
             ).get_param('web.base.url')
 
             for move in moves:
-                price_unit = move.price_unit or move.product_id.standard_price
+                # 1. Regla Anti-Duplicidad
+                if move.purchase_line_id or move.picking_id.purchase_id:
+                    continue
+
+                # Lógica copiada de _get_profitability_data para consistencia estricta
+                layers = move.stock_valuation_layer_ids
+                total_cost = 0.0
+
+                # Helper para conversión en bucle
+                def convert_s(amount, src, date):
+                    return wizard._convert_amount(amount, src, target_currency, date)
+
+                if layers:
+                    total_val = sum(abs(l.value) for l in layers)
+                    total_cost = convert_s(
+                        total_val, company_currency, move.date)
+                else:
+                    val_unit = move.price_unit or move.product_id.standard_price
+                    qty = move.quantity if move.state == 'done' else move.product_uom_qty
+                    total_cost = convert_s(
+                        val_unit * qty, company_currency, move.date)
+
+                # Definir Signo y Etiqueta
+                is_outgoing = move.location_id.usage == 'internal' and move.location_dest_id.usage != 'internal'
+                is_return = move.location_id.usage != 'internal' and move.location_dest_id.usage == 'internal'
+
+                # Etiqueta por defecto
+                move_label = move.reference
+
+                if is_outgoing:
+                    pass  # Costo es positivo
+                elif is_return:
+                    total_cost = -total_cost
+                else:
+                    # Interno (Int -> Int) -> Resguardo
+                    total_cost = 0.0
+                    move_label = f"{move.reference} (Resguardo / Interno)"
+
+                # Calcular precio unitario efectivo para visualización
                 qty_display = move.quantity if move.state == 'done' else move.product_uom_qty
-                total_cost = qty_display * price_unit
-                picking_url = f"{base_url}/web#id={move.picking_id.id}&model=stock.picking&view_type=form"
+                unit_cost_display = abs(
+                    total_cost / qty_display) if qty_display else 0.0
+
+                move_url = f"{base_url}/web#id={move.id}&model=stock.move&view_type=form"
 
                 stock_moves_list.append({
                     'product_name': move.product_id.display_name,
-                    'task_name': move.task_id.name,
-                    'project_name': move.task_id.project_id.name,
+                    'task_name': move.task_id.name or '-',  # Manejar tarea faltante
+                    # Manejar enlace directo a proyecto
+                    'project_name': move.task_id.project_id.name or move.project_id.name,
                     'date': move.date,
                     'quantity': qty_display,
                     'uom': move.product_uom.name,
                     'reference': move.reference,
                     'picking': move.picking_id.name,
-                    'picking_url': picking_url,
-                    'price_unit': price_unit,
+                    'picking_url': move_url,
+                    'price_unit': unit_cost_display,
                     'total_cost': total_cost,
                     'state_label': state_map.get(move.state, move.state),
                     'state_raw': move.state,
@@ -557,12 +833,9 @@ class ProjectProfitabilityReport(models.TransientModel):
 
             # Compras Detalladas
             purchases_list = []
-            po_domain = [
-                ('task_id', 'in', all_task_ids),
-                ('order_id.state', 'in', ('purchase', 'done'))
-            ] + wizard._get_date_domain('date_order')
-            purchase_lines = self.env['purchase.order.line'].search(
-                po_domain, order='create_date desc')
+            # Use Source of Truth Helper
+            purchase_lines = wizard._get_purchase_order_lines().sorted(
+                'create_date', reverse=True)
 
             purchase_state_map = {
                 'draft': 'Borrador', 'sent': 'Enviado', 'to approve': 'Por Aprobar',
@@ -573,27 +846,25 @@ class ProjectProfitabilityReport(models.TransientModel):
                 purchases_list.append({
                     'order_name': line.order_id.name,
                     'order_id': line.order_id.id,
-                    'project_name': line.task_id.project_id.name,
-                    'task_name': line.task_id.name,
+                    'project_name': line.task_id.project_id.name or line.project_id.name,
+                    'task_name': line.task_id.name or '-',
                     'purchase_order_model': 'purchase.order',  # For linking
                     'date': line.date_order,
                     'partner': line.partner_id.name,
                     'product': line.product_id.display_name,
                     'qty': line.product_qty,
                     'price_unit': line.price_unit,
-                    'total': line.price_subtotal,
-                    'currency': line.currency_id.symbol,
+                    'total': wizard._convert_amount(line.price_subtotal, line.currency_id, target_currency, line.order_id.date_order),
+                    'currency': target_currency.symbol,  # Converted currency
                     'state': purchase_state_map.get(line.order_id.state, line.order_id.state),
                     'state_raw': line.order_id.state,
                 })
 
             # Gastos Detallados
             expenses_list = []
-            exp_domain = [
-                ('task_id', 'in', all_task_ids),
-                ('sheet_id.state', 'in', ['approve', 'post', 'done'])
-            ] + wizard._get_date_domain('date')
-            expenses = self.env['hr.expense'].search(
+            exp_domain = wizard._get_expense_domain(all_tasks)
+
+            expenses = self.env['hr.expense'].sudo().search(
                 exp_domain, order='date desc')
 
             expense_state_map = {
@@ -605,15 +876,24 @@ class ProjectProfitabilityReport(models.TransientModel):
                 # URL
                 exp_url = f"/web#id={exp.id}&model=hr.expense&view_type=form"
 
+                # Calculate Amount for Display
+                if 'untaxed_amount_currency' in self.env['hr.expense']._fields:
+                    amount_display = exp.untaxed_amount_currency
+                elif 'untaxed_amount' in self.env['hr.expense']._fields:
+                    amount_display = exp.untaxed_amount
+                else:
+                    amount_display = getattr(
+                        exp, 'total_amount_currency', 0.0) or exp.total_amount
+
                 expenses_list.append({
                     'name': exp.name,
                     'employee': exp.employee_id.name,
-                    'project_name': exp.task_id.project_id.name,
-                    'task_name': exp.task_id.name,
+                    'project_name': exp.task_id.project_id.name or exp.project_id.name if 'project_id' in exp else '-',
+                    'task_name': exp.task_id.name or '-',
                     'date': exp.date,
                     'product': exp.product_id.display_name,
-                    'total': exp.total_amount,
-                    'currency': exp.currency_id.symbol,
+                    'total': wizard._convert_amount(amount_display, exp.currency_id, target_currency, exp.date),
+                    'currency': target_currency.symbol,  # Converted to report currency
                     'state': expense_state_map.get(exp.state, exp.state),
                     'state_raw': exp.state,
                     'sheet_name': exp.sheet_id.name,
@@ -644,7 +924,7 @@ class ProjectProfitabilityReport(models.TransientModel):
                 'style': chart_style
             }
 
-            # --- COLUMN CHART DATA CALCULATION (TRUE WATERFALL) ---
+            # --- CÁLCULO DE GRÁFICO DE COLUMNAS (CASCADA REAL) ---
             column_data = []
             if wizard.chart_type == 'waterfall':
                 if not wizard.currency_id:
@@ -653,26 +933,21 @@ class ProjectProfitabilityReport(models.TransientModel):
                     currency = wizard.currency_id
 
                 rev = wizard.invoiced_income
-                # Costs (Negative for waterfall steps)
+                # Costos (Negativos para pasos de cascada)
                 exp = -wizard.total_expenses
-                # Simplified Purchases
+                # Compras Simplificadas
                 pur_total = -wizard.total_purchases
                 stk = -wizard.total_stock_moves
                 tsh = -wizard.timesheet_cost
 
                 final_margin = rev + exp + pur_total + stk + tsh
 
-                # Structure: (Label, Value, Type, Color)
-                # Type: 'start', 'step', 'end' ?
-                # We need start/end levels.
-
-                # Steps:
-                # 1. Ingresos (Base) -> Start at 0, Height = Rev
-                # 2. Gastos -> Start at Rev, Height = -Exp (Down)
-                # 3. Compras Incur. -> Start at (Rev+Exp), Height = -PurInc
-                # 4. Compras Compr. -> ...
+                # Estructura: (Etiqueta, Valor, Tipo, Color)
+                # Pasos:
+                # 1. Ingresos (Base) -> Inicia en 0, Altura = Rev
+                # 2. Gastos -> Inicia en Rev, Altura = -Exp (Baja)
                 # ...
-                # Last: Margen -> Start at 0, Height = Margin (or residue)
+                # Último: Margen -> Inicia en 0, Altura = Margen (o residuo)
 
                 waterfall_steps = [
                     {'label': 'Ingresos', 'val': rev,
@@ -731,10 +1006,10 @@ class ProjectProfitabilityReport(models.TransientModel):
                         y_end = current_y + val
                         current_y = y_end
 
-                    # Determine bar geometric properties (percentage of container height)
-                    # We assume 0 is at bottom (0%). Max is Top (100%).
-                    # If values are negative? Waterfall works best with positive revenue > costs.
-                    # We map [0, max_val] to [0, 100%].
+                    # Determinar propiedades geométricas (porcentaje de altura)
+                    # Asumimos 0 abajo (0%) y Max arriba (100%)
+                    # Cascada funciona mejor con positivos, pero manejamos negativos visualmente.
+                    # Mapeamos [0, max_val] a [0, 100%]
 
                     b_bottom = (min(y_start, y_end) / max_val) * 100.0
                     b_height = (abs(val) / max_val) * 100.0
@@ -754,60 +1029,43 @@ class ProjectProfitabilityReport(models.TransientModel):
             all_tasks = self.env['project.task'].browse(all_task_ids)
             sols = all_tasks.mapped('sale_line_id')
 
-            # Timesheets (Compensations)
-            comp_domain = [
-                ('task_id', 'in', all_task_ids),
-                ('compensation_id.state', 'in', ['approve', 'applied'])
-            ]
-            comp_lines = self.env['compensation.line'].search(comp_domain)
+            # Timesheets (Cost from Analytic Lines)
+            ts_domain = wizard._get_project_task_domain()
+            ts_domain += wizard._get_date_domain('date')
 
-            # Timesheets List
+            timesheets = self.env['account.analytic.line'].search(
+                ts_domain, order='date desc')
+
             timesheets_list = []
 
-            # Obtener traducciones de estados si es posible
-            ts_state_map = {}
-            if comp_lines:
-                try:
-                    # Intento de obtener el modelo de compensation_id (asumiendo compensation.request)
-                    # Si falla, usaremos el valor raw
-                    sample_comp = comp_lines[0].compensation_id
-                    if sample_comp:
-                        ts_state_map = dict(
-                            sample_comp._fields['state'].selection)
-                except Exception:
-                    pass
+            for al in timesheets:
+                # URL
+                ts_url = f"/web#id={al.id}&model=account.analytic.line&view_type=form"
 
-            for comp in comp_lines:
-                # Filtrar fecha si aplica
-                if wizard.date_filter_type == 'none' or wizard._check_date(comp.create_date):
-                    # URL
-                    ts_url = f"/web#id={comp.id}&model=compensation.line&view_type=form"
+                # Cost is negative in amount. We want positive magnitude.
+                cost = -al.amount
 
-                    timesheets_list.append({
-                        'employee': comp.employee_id.name,
-                        'project_name': comp.task_id.project_id.name,
-                        'date': comp.create_date,
-                        'description': comp.justification or comp.task_id.name,
-                        'task': comp.task_id.name,
-                        'total': comp.total_cost,
-                        # Asumimos moneda compañia para compensaciones
-                        'currency': company_currency.symbol,
-                        'total': comp.total_cost,
-                        # Asumimos moneda compañia para compensaciones
-                        'currency': company_currency.symbol,
-                        'state_label': ts_state_map.get(comp.compensation_id.state, comp.compensation_id.state),
-                        'state_raw': comp.compensation_id.state,
-                        'ts_url': ts_url
-                    })
+                timesheets_list.append({
+                    'employee': al.employee_id.name,
+                    'project_name': al.project_id.name,
+                    'date': al.date,
+                    'description': al.name,
+                    'task': al.task_id.name or '-',
+                    'total': cost,
+                    'currency': al.currency_id.symbol,
+                    'state_label': 'Validado',
+                    'state_raw': 'validated',
+                    'ts_url': ts_url
+                })
 
-            # --- LINE CHART DATA GENERATION ---
+            # --- GENERACIÓN DE DATOS PARA GRÁFICO DE LÍNEA ---
             line_chart_svg = ""
             if wizard.chart_type == 'line':
-                # 1. Aggregate Data by Date
+                # 1. Agregar Datos por Fecha
                 date_data = defaultdict(lambda: {'income': 0.0, 'cost': 0.0})
 
-                # Incomes (Invoices)
-                # Re-fetch posted lines to ensure we have dates accessible
+                # Ingresos (Facturas)
+                # Re-fetch líneas publicadas para asegurar acceso a fechas
                 inv_domain_line = [('move_id.state', '=', 'posted'), ('sale_line_ids', 'in', sols.ids)] + \
                     wizard._get_date_domain('move_id.invoice_date')
                 invoiced_lines = self.env['account.move.line'].search(
@@ -852,11 +1110,14 @@ class ProjectProfitabilityReport(models.TransientModel):
                             cost_native, company_currency, target_currency, move.date)
 
                 # Timesheets
-                for comp in comp_lines:
-                    d = comp.create_date.date() if comp.create_date else False
+                # Timesheets (AAL)
+                for al in timesheets:
+                    d = al.date
                     if d and wizard._check_date(d):
+                        # Cost is positive magnitude of amount (which is negative)
+                        cost = -al.amount
                         date_data[d]['cost'] += wizard._convert_amount(
-                            comp.total_cost, company_currency, target_currency, comp.create_date)
+                            cost, al.currency_id, target_currency, al.date)
 
                 # 2. Sort Dates and Fill Gaps (Optional, but better for lines)
                 if date_data:
@@ -1067,12 +1328,12 @@ class ProjectProfitabilityReport(models.TransientModel):
             # Using wizard computes directly which are already calculated in _compute_profitability
             # Margin & Percentage are in wizard.margin_total and wizard.profit_percentage
 
-            # 1. Negative Profit (Cost > Income)
+            # 1. Beneficio Negativo (Costo > Ingreso)
             if wizard.margin_total < 0:
                 alert_negative_profit = True
 
-            # 2. Low Margin (Positive but < 10%)
-            # We assume profit_percentage is 0-100 base
+            # 2. Margen Bajo (Positivo pero < 10%)
+            # Asumimos profit_percentage base 0-100
             elif wizard.profit_percentage < 10.0 and wizard.invoiced_income > 0:
                 alert_low_margin = True
 
@@ -1112,6 +1373,121 @@ class ProjectProfitabilityReport(models.TransientModel):
             wizard.content = self.env['ir.qweb']._render(
                 'project_modificaciones.project_profitability_template', values)
 
+    def _get_project_task_domain(self, model_prefix=''):
+        """
+        Retorna un dominio que incluye:
+        1. Registros vinculados a las tareas filtradas.
+        2. Registros vinculados al proyecto pero SIN tarea (costos globales del proyecto).
+        """
+        tasks = self._get_filtered_tasks()
+        all_tasks = tasks | tasks.mapped('child_ids')
+
+        task_field = f'{model_prefix}task_id'
+        project_field = f'{model_prefix}project_id'
+
+        domain = [(task_field, 'in', all_tasks.ids)]
+
+        if not self.task_ids and self.project_ids:
+            return [
+                '|',
+                (task_field, 'in', all_tasks.ids),
+                '&',
+                (project_field, 'in', self.project_ids.ids),
+                (task_field, '=', False)
+            ]
+
+        return domain
+
+    def _get_expense_domain(self, all_tasks):
+        """Helper para asegurar dominio consistente para gastos"""
+        self.ensure_one()
+        domain = []
+
+        # Lógica de Vinculación (Proyecto / Tarea / Analítica)
+        # Queremos: (Tarea) OR (Proyecto) OR (Analítica)
+
+        criteria = [('task_id', 'in', all_tasks.ids)]
+        projects = self.project_ids
+        # Filtrar por ubicación si aplica (aunque self.project_ids ya debería estar filtrado o ser el contexto)
+        if self.ubicacion_ids:
+            projects = projects.filtered(
+                lambda p: p.ubicacion in self.ubicacion_ids)
+
+        if 'project_id' in self.env['hr.expense']._fields:
+            criteria.append(('project_id', 'in', projects.ids))
+
+        # Lógica Analítica
+        if self.include_analytic_account:
+            analytics = projects.mapped('analytic_account_id')
+            if analytics and 'analytic_account_id' in self.env['hr.expense']._fields:
+                criteria.append(('analytic_account_id', 'in', analytics.ids))
+
+        # Construir OR
+        link_domain = []
+        if len(criteria) > 1:
+            link_domain = ['|'] * (len(criteria) - 1)
+        link_domain += criteria
+
+        # Combinar
+        domain += link_domain
+
+        # Filtros Adicionales (Estado y Fecha)
+        domain += [('sheet_id.state', 'in', ['approve', 'post', 'done'])]
+        domain += self._get_date_domain('date')
+        return domain
+
+    def _compute_stats(self):
+        for wizard in self:
+            tasks = wizard._get_filtered_tasks()
+            all_tasks = tasks | tasks.mapped('child_ids')
+
+            # 0. Task Count
+            wizard.task_count = len(tasks)
+
+            # 1. Sale Orders (Source of Truth: Helper)
+            wizard.sale_order_count = len(wizard._get_sale_orders())
+
+            # 2. Purchase Orders (Source of Truth: Helper)
+            wizard.purchase_count = len(wizard._get_purchase_orders())
+
+            # 3. Expenses
+            exp_domain = wizard._get_expense_domain(all_tasks)
+            wizard.expense_count = self.env['hr.expense'].search_count(
+                exp_domain)
+
+            # 4. Requisiciones
+            req_date_field = 'date_start' if 'date_start' in self.env[
+                'employee.purchase.requisition']._fields else 'create_date'
+
+            req_line_domain = wizard._get_project_task_domain()
+            req_line_domain += [('requisition_product_id.state',
+                                 'not in', ['cancelled', 'new'])]
+
+            if wizard.date_filter_type != 'none':
+                if wizard.date_from:
+                    req_line_domain.append(
+                        ('requisition_product_id.' + req_date_field, '>=', wizard.date_from))
+                if wizard.date_to:
+                    req_line_domain.append(
+                        ('requisition_product_id.' + req_date_field, '<=', wizard.date_to))
+
+            req_lines = self.env['requisition.order'].search(req_line_domain)
+            wizard.requisition_count = len(
+                req_lines.mapped('requisition_product_id'))
+
+            # 5. Stock Moves (Fuente: Helper)
+            wizard.stock_move_count = len(wizard._get_stock_moves())
+
+            # 6. Timesheets (Fuente: Helper)
+            timesheets = wizard._get_timesheets()
+            wizard.timesheet_hours = sum(timesheets.mapped('unit_amount'))
+
+            # 7. Compensations (Nómina) - Conteo de Solicitudes desde Líneas
+            comp_lines = wizard._get_compensations()
+            # Petición de usuario: Contar compensation.request (cabecera), no líneas
+            wizard.compensation_count = len(
+                comp_lines.mapped('compensation_id'))
+
     def action_recalculate(self):
         self._compute_stats()
         self._compute_profitability()
@@ -1135,54 +1511,80 @@ class ProjectProfitabilityReport(models.TransientModel):
 
     def action_view_sale_orders(self):
         self.ensure_one()
-        tasks = self._get_filtered_tasks()
-        all_tasks = tasks | tasks.mapped('child_ids')
-        orders = all_tasks.mapped('sale_order_id')
-        return self._get_action_view_base('Órdenes de Venta', 'sale.order', [('id', 'in', orders.ids)])
+        return self._get_action_view_base('Órdenes de Venta', 'sale.order', [('id', 'in', self._get_sale_orders().ids)])
 
     def action_view_purchase_orders(self):
         self.ensure_one()
-        tasks = self._get_filtered_tasks()
-        all_tasks = tasks | tasks.mapped('child_ids')
-        lines = self.env['purchase.order.line'].search([
-            ('task_id', 'in', all_tasks.ids),
-            ('order_id.state', 'in', ('purchase', 'done'))
-        ])
-        orders = lines.mapped('order_id')
-        return self._get_action_view_base('Órdenes de Compra', 'purchase.order', [('id', 'in', orders.ids)])
+        return self._get_action_view_base('Órdenes de Compra', 'purchase.order', [('id', 'in', self._get_purchase_orders().ids)])
 
     def action_view_timesheets(self):
         self.ensure_one()
-        tasks = self._get_filtered_tasks()
-        all_tasks = tasks | tasks.mapped('child_ids')
-        return self._get_action_view_base('Hojas de Horas', 'account.analytic.line', [('task_id', 'in', all_tasks.ids)])
+
+        # Revert to account.analytic.line (Hours Source)
+        domain = self._get_project_task_domain()
+        domain += self._get_date_domain('date')
+
+        return self._get_action_view_base('Hojas de Horas', 'account.analytic.line', domain)
+
+    def action_view_compensations(self):
+        self.ensure_one()
+
+        # Compensaciones (Fuente Nómina)
+        # Filtro estricto de usuario: Solo 'applied'
+        comp_domain = [('compensation_id.state', '=', 'applied')]
+
+        if 'project_id' in self.env['compensation.line']._fields:
+            comp_domain += self._get_project_task_domain()
+        else:
+            tasks = self._get_filtered_tasks()
+            all_tasks = tasks | tasks.mapped('child_ids')
+            comp_domain += [('task_id', 'in', all_tasks.ids)]
+
+        # Añadir Filtro de Fecha
+        date_field = 'create_date'
+        if 'date' in self.env['compensation.line']._fields:
+            date_field = 'date'
+
+        comp_domain += self._get_date_domain(date_field)
+
+        # Petición usuario: Ver compensation.request (header), no líneas
+        lines = self.env['compensation.line'].search(comp_domain)
+        requests = lines.mapped('compensation_id')
+
+        return self._get_action_view_base('Compensaciones', 'compensation.request', [('id', 'in', requests.ids)])
 
     def action_view_expenses(self):
         self.ensure_one()
         tasks = self._get_filtered_tasks()
         all_tasks = tasks | tasks.mapped('child_ids')
-        return self._get_action_view_base('Gastos', 'hr.expense', [
-            ('task_id', 'in', all_tasks.ids),
-            ('sheet_id.state', 'in', ['approve', 'post', 'done'])
-        ])
+
+        domain = self._get_expense_domain(all_tasks)
+        return self._get_action_view_base('Gastos', 'hr.expense', domain)
 
     def action_view_requisitions(self):
         self.ensure_one()
-        tasks = self._get_filtered_tasks()
-        all_tasks = tasks | tasks.mapped('child_ids')
-        return self._get_action_view_base('Requisiciones', 'employee.purchase.requisition', [
-            ('task_id', 'in', all_tasks.ids),
-            ('state', 'not in', ['cancelled', 'new'])
-        ])
+
+        line_domain = self._get_project_task_domain()
+        line_domain += [('requisition_product_id.state',
+                         'not in', ['cancelled', 'new'])]
+
+        req_date_field = 'date_start' if 'date_start' in self.env[
+            'employee.purchase.requisition']._fields else 'create_date'
+
+        if self.date_filter_type != 'none':
+            if self.date_from:
+                line_domain.append(
+                    ('requisition_product_id.' + req_date_field, '>=', self.date_from))
+            if self.date_to:
+                line_domain.append(
+                    ('requisition_product_id.' + req_date_field, '<=', self.date_to))
+
+        lines = self.env['requisition.order'].search(line_domain)
+        requisition_ids = lines.mapped('requisition_product_id').ids
+
+        return self._get_action_view_base('Requisiciones', 'employee.purchase.requisition', [('id', 'in', requisition_ids)])
 
     def action_view_stock_moves(self):
         self.ensure_one()
-        tasks = self._get_filtered_tasks()
-        all_tasks = tasks | tasks.mapped('child_ids')
-        moves = self.env['stock.move'].search([
-            ('task_id', 'in', all_tasks.ids),
-            ('state', 'in', ['confirmed', 'assigned',
-             'partially_available', 'done'])
-        ])
-        picking_ids = moves.mapped('picking_id').ids
+        picking_ids = self._get_stock_moves().mapped('picking_id').ids
         return self._get_action_view_base('Movimientos de Almacén', 'stock.picking', [('id', 'in', picking_ids)])

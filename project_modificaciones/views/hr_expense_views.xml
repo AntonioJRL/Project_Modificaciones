@@ -11,7 +11,9 @@
                         options="{'no_create': True, 'no_edit': True}" />
                     <span class="oe_inline o_form_label mx-3">Tarea:</span>
                     <field name="task_id"
-                        options="{'no_create': True, 'no_edit': True}" />
+                        domain="project_id and [('project_id', '=', project_id), ('state', 'not in', ['1_done', '1_canceled'])] or [('state', 'not in', ['1_done', '1_canceled'])]"
+                        options="{'no_create': True, 'no_edit': True}" /> <!--[('project_id',
+                    '=', project_id), ('is_closed', '=', False)] or [('is_closed', '=', False)]-->
                 </div>
             </xpath>
         </field>

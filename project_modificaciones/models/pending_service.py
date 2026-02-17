@@ -109,59 +109,18 @@ class PendingService(models.Model):
     sale_order_count = fields.Integer(
         string='Órdenes de Venta', compute='_compute_sale_order_count')
 
-    scaffolding_count = fields.Integer(
-        string='Andamios', compute='_compute_scaffolding_count')
-
-    @api.depends('sale_order_count')
-    def _compute_scaffolding_count(self):
-        for record in self:
-            # Buscar andamios relacionados a las órdenes de venta de este servicio
-            sale_orders = self.env['sale.order'].search([
-                ('pending_service_id', '=', record.id)
-            ])
-            if sale_orders and 'scaffolding.installation' in self.env:
-                record.scaffolding_count = self.env['scaffolding.installation'].search_count([
-                    ('sale_order_id', 'in', sale_orders.ids)
-                ])
-            else:
-                record.scaffolding_count = 0
-
-    def action_view_scaffoldings(self):
-        self.ensure_one()
-        if 'scaffolding.installation' not in self.env:
-            return
-
-        sale_orders = self.env['sale.order'].search([
-            ('pending_service_id', '=', self.id)
-        ])
-
-        domain = [('sale_order_id', 'in', sale_orders.ids)]
-
-        return {
-            'type': 'ir.actions.act_window',
-            'name': _('Andamios Relacionados'),
-            'res_model': 'scaffolding.installation',
-            'view_mode': 'tree,form',
-            'domain': domain,
-            'context': {'default_sale_order_id': sale_orders[0].id if sale_orders else False},
-        }
-
-    @api.depends('service_line_ids.task_id')
+    @api.depends('task_ids', 'service_line_ids.task_id')
     def _compute_task_count(self):
         for record in self:
-            # 1. Extraemos los IDs de las tareas vinculadas en las líneas
-            # Usamos .filtered para evitar valores nulos si alguna línea no tiene tarea
-            task_ids_in_lines = record.service_line_ids.mapped('task_id').ids
-
-            # 2. Definimos el dominio usando el campo relacional servicio_pendiente en project.task.
-            domain = [
-                '|',
-                ('servicio_pendiente', '=', record.id),
-                ('id', 'in', task_ids_in_lines)
-            ]
-            # 3. Contabilizamos
-            record.task_count = self.env['project.task'].search_count(domain)
-
+            # Tareas vinculadas por líneas de servicio
+            tasks_in_lines = record.service_line_ids.mapped('task_id').ids
+            # Tareas vinculadas directamente por el campo Many2one
+            tasks_direct = record.task_ids.ids
+            
+            # Unimos sin duplicados
+            all_tasks = set(tasks_in_lines + tasks_direct)
+            record.task_count = len(all_tasks)
+            
     @api.depends()
     def _compute_sale_order_count(self):
         for record in self:
@@ -225,10 +184,10 @@ class PendingService(models.Model):
                     'producto_relacionado': line.product_id.id,
                     'servicio_pendiente': record.id,
                 })
-
+                
                 # Link task to line persistently
                 line.task_id = task.id
-                created_tasks |= task
+                created_tasks |= task 
 
             # 3. NOTIFICACIÓN UI (Sin historial en chatter)
             if created_tasks:
@@ -250,13 +209,13 @@ class PendingService(models.Model):
         self.ensure_one()
         # Mismo dominio para que la vista coincida con el contador
         task_ids_from_lines = self.service_line_ids.mapped('task_id').ids
-
+        
         domain = [
             '|',
             ('servicio_pendiente', '=', self.id),
             ('id', 'in', task_ids_from_lines)
         ]
-
+        
         return {
             'type': 'ir.actions.act_window',
             'name': _('Tareas del Servicio'),
@@ -421,7 +380,6 @@ class PendingService(models.Model):
         string="Tarea Relacionada",
         help="Tarea relacionada con el pendiente.",
     )
-
 
 class PendingServiceLine(models.Model):
     _name = 'pending.service.line'

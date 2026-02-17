@@ -10,13 +10,6 @@
                 <xpath expr="//field[@name='vat']" position="after">
                     <field name="tipo_contacto" widget="radio" options="{'horizontal': true}" />
                 </xpath>
-
-                <xpath
-                    expr="//form/sheet/notebook/page[@name='accounting']/group/group[@name='electronic_invoicing']/field[@name='ubl_cii_format']"
-                    position="after">
-                    <separator string="CENTRO DE COSTO" />
-                    <field name="centro_costo" />
-                </xpath>
             </field>
         </record>
     </data>

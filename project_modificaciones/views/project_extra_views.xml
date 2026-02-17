@@ -9,17 +9,20 @@
                 <field name="state" widget="badge" />
                 <field name="team_id" />
             </xpath>
+            <!-- Ocultar botón estándar de Ventas (sale_project) si no hay cliente -->
+            <xpath expr="//div[@name='button_box']/button[@name='action_view_sos']"
+                position="attributes">
+                <attribute name="invisible">not partner_id</attribute>
+            </xpath>
+
             <xpath expr="//sheet//div" position="inside">
-                <!-- Intentar ocultar el botón estándar de Ventas (si existe con este nombre) -->
-                <!-- <xpath expr="//button[@name='action_view_so']" position="attributes">
-                    <attribute name="invisible">1</attribute>
-                </xpath> -->
 
                 <!-- Nuevo Smart Button que consolida Venta Directa + Ventas de Tareas -->
+                <field name="partner_id" invisible="1" />
                 <button class="oe_stat_button" type="object"
                     name="action_view_related_sale_orders"
                     icon="fa-dollar"
-                    invisible="related_sale_orders_count == 0">
+                    invisible="partner_id">
                     <field name="related_sale_orders_count" widget="statinfo"
                         string="Órdenes de Ventas" />
                 </button>

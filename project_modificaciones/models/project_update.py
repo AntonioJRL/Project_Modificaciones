@@ -14,6 +14,12 @@ class ProjectUpdate(models.Model):
     sub_update_ids = fields.One2many(
         'project.sub.update', 'update_id', string="Creación De Avances")
 
+    sale_order_id = fields.Many2one(
+        'sale.order', string="Orden de Venta",
+        compute='_compute_sale_order_id', store=True,
+        help="Orden de Venta principal del grupo de avances."
+    )
+
     sale_current = fields.Float(
         string='Avance del subtotal', compute='_sale_current', store=True, default=0.0)
     sale_actual = fields.Float(
@@ -41,6 +47,13 @@ class ProjectUpdate(models.Model):
         compute="_compute_progress_percentage",
         store=True,
     )
+
+    @api.depends('sub_update_ids.sale_order_id')
+    def _compute_sale_order_id(self):
+        for update in self:
+            # Tomamos la primera SO encontrada en los avances
+            sale_orders = update.sub_update_ids.mapped('sale_order_id')
+            update.sale_order_id = sale_orders[0] if sale_orders else False
 
     # -------------------------------------------------------------------------
     # MÉTODOS COMPUTADOS (BASE + INHERIT)

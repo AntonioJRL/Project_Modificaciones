@@ -18,7 +18,6 @@ class Task(models.Model):
         copy=False,
         index=True,
         ondelete='set null',
-        domain="[('is_service', '=', True), ('is_expense', '=', False), ('state', 'in', ['sale', 'done']), ('order_partner_id', '=?', partner_id), '|', ('company_id', '=', False), ('company_id', '=', company_id)]",
         help="Línea de orden de venta asociada a esta tarea. Solo se muestran servicios confirmados."
     )
 
@@ -718,6 +717,9 @@ class Task(models.Model):
 
                         if needs_update:
                             task.write(vals)
+            # Si es una subtarea, verificar si el padre debe actualizarse
+            if task.parent_id:
+                task.parent_id._update_completion_state_side_effects()
 
     @api.model
     def update_task_status(self):
@@ -1321,6 +1323,13 @@ class Task(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        # Corrección: Asegurar que las subtareas hereden el proyecto de su padre
+        # antes de que se evalúe cualquier lógica de 'is_control_obra'.
+        for vals in vals_list:
+            if not vals.get("project_id") and vals.get("parent_id"):
+                parent = self.env["project.task"].browse(vals["parent_id"])
+                if parent.project_id:
+                    vals["project_id"] = parent.project_id.id
 
         for vals in vals_list:
             if vals.get("sale_line_id"):
@@ -1656,10 +1665,18 @@ class Task(models.Model):
                     ) % (total_weight, task.name))
 
     # Servicio pediente relacionado con la tarea
-    servicio_pendiente = fields.One2many(
+    servicio_pendiente = fields.Many2one(
         'pending.service',
-        'task_id',
         string="Servicio Pendiente",
         ondelete="set null",
         help="Servicio pendiente relacionado con la tarea"
     )
+
+    def action_link_sale_line(self):
+        """Método para forzar la vinculación correcta con la línea de venta y actualizar entregas."""
+        for task in self:
+            if task.sale_line_id:
+                task.sale_line_id.sudo().write({'task_id': task.id})
+                # Trigger recompute manually for safety
+                task.sale_line_id._compute_qty_delivered()
+        return True
