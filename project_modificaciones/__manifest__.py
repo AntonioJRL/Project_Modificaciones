@@ -2,7 +2,7 @@
     'name': 'Modificaciones de Project',
     'version': '17.1.3',
     'author': 'Mauricio, Antonio J.',
-    'depends': ['base', 'sale', 'hr', 'project', 'sale_project', 'purchase', 'hr_expense', 'sale_purchase', 'hr_timesheet', 'employee_purchase_requisition', 'stock','web'],
+    'depends': ['base', 'sale', 'hr', 'project', 'sale_project', 'purchase', 'hr_expense', 'sale_purchase', 'hr_timesheet', 'employee_purchase_requisition', 'stock', 'web'],
     'license': 'AGPL-3',
     'data': [
         # 1. Security (Groups first, then Access Rights, then Rules)
@@ -20,6 +20,7 @@
         "views/res_partner_views.xml",
         "views/control_centro_trabajo_views.xml",
         "views/control_planta_views.xml",
+        "views/project_profitability_report_pdf.xml",
         "views/project_profitability_report_views.xml",
 
         # 3.1 Wizards (Must be before views that reference them via actions)
@@ -63,7 +64,7 @@
         ],
     },
 
-    
+
     'category': 'Technical',
     'license': 'AGPL-3',
     'installable': True,

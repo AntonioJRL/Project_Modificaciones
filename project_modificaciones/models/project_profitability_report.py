@@ -1,6 +1,8 @@
 from odoo import api, fields, models, _
 from odoo.tools import format_amount
 from odoo.tools.float_utils import float_round
+from odoo.osv import expression
+from datetime import date
 from dateutil.relativedelta import relativedelta
 import json
 from collections import defaultdict
@@ -17,11 +19,15 @@ class ProjectProfitabilityReport(models.TransientModel):
     def _default_project_ids(self):
         return self.env.context.get('active_ids') if self.env.context.get('active_model') == 'project.project' else []
 
-    project_ids = fields.Many2many('project.project', string='Proyectos',
-                                   default=_default_project_ids,
-                                   required=True, domain="[('is_proyecto_obra', '=', True)]", help="Proyectos a los cuales se les realizará la revisión de rentabilidad.")
+    project_ids = fields.Many2many(
+        'project.project',
+        string='Proyectos',
+        default=_default_project_ids,
+        required=True,
+        domain="[('is_proyecto_obra', '=', True)]",
+        help="Proyectos a los cuales se les realizará la revisión de rentabilidad.",
+    )
 
-    # Nombre
     name = fields.Char(string='Nombre', compute='_compute_nombre')
 
     @api.depends('project_ids')
@@ -33,22 +39,25 @@ class ProjectProfitabilityReport(models.TransientModel):
             elif len(wizard.project_ids) == 1:
                 wizard.name = f"Dashboard Proyecto: {wizard.project_ids.display_name}"
             else:
-                # Limitar a 3 nombres para evitar títulos demasiado largos
                 names = wizard.project_ids.mapped('name')
                 if len(names) > 3:
-                    display_text = f"{', '.join(names[:3])} (+{len(names)-3})"
+                    display_text = f"{', '.join(names[:3])} (+{len(names) - 3})"
                 else:
                     display_text = ", ".join(names)
                 wizard.name = f"Dashboard Proyectos: {display_text}"
 
-    # Filtros Principales
+    # ── Filtros Principales ──────────────────────────────────────────────────
+
     filter_type = fields.Selection([
         ('all', 'Todas las Tareas'),
-        ('filter', 'Selección Manual')
+        ('filter', 'Selección Manual'),
     ], string='Tareas', default='all', required=True)
 
-    task_ids = fields.Many2many('project.task', string='Tareas Específicas',
-                                domain="[('project_id', 'in', project_ids)]")
+    task_ids = fields.Many2many(
+        'project.task',
+        string='Tareas Específicas',
+        domain="[('project_id', 'in', project_ids)]",
+    )
 
     task_state_filter = fields.Selection([
         ('all', 'Todas'),
@@ -65,16 +74,17 @@ class ProjectProfitabilityReport(models.TransientModel):
 
     include_analytic_account = fields.Boolean(
         string="Incluir por Cuenta Analítica",
-        default=True,
-        help="Si está activo, busca también registros vinculados a la Cuenta Analítica del Proyecto, no solo al Proyecto directamente."
+        default=False,
+        help="Si está activo, busca también registros vinculados a la Cuenta Analítica del Proyecto.",
     )
 
-    # Filtros de Fecha
+    # ── Filtros de Fecha y Gráfico ───────────────────────────────────────────
+
     chart_type = fields.Selection([
         ('pie', 'Gráfico de Costos'),
         ('waterfall', 'Cascada de Rentabilidad'),
         ('line', 'Evolución Temporal'),
-        ('top_tasks', 'Top 10 Tareas')
+        ('top_tasks', 'Top 10 Tareas'),
     ], string='Tipo de Gráfico', default='pie', required=True)
 
     date_filter_type = fields.Selection([
@@ -82,26 +92,31 @@ class ProjectProfitabilityReport(models.TransientModel):
         ('today', 'Hoy'),
         ('this_month', 'Este Mes'),
         ('this_year', 'Este Año'),
-        ('custom', 'Personalizado')
+        ('custom', 'Personalizado'),
     ], string='Periodo', default='none', required=True)
 
     date_from = fields.Date(string='Desde')
     date_to = fields.Date(string='Hasta')
 
-    # Filtro de Ubicacion
+    # ── Filtro de Ubicación ──────────────────────────────────────────────────
+
     ubicacion_ids = fields.Many2many(
-        'project.ubicacion', string='Ubicaciones',
-        help="Filtrar proyectos por su ubicación (sitio de trabajo).")
+        'project.ubicacion',
+        string='Ubicaciones',
+        help="Filtrar proyectos por su ubicación (sitio de trabajo).",
+    )
 
     date = fields.Date(default=fields.Date.context_today)
     currency_id = fields.Many2one(
         'res.currency', default=lambda self: self.env.company.currency_id)
 
-    # Contenido HTML renderizado
+    # ── Contenido HTML ───────────────────────────────────────────────────────
+
     content = fields.Html(string='Contenido',
                           sanitize=False, compute='_compute_content')
 
-    # Métricas Agregadas (Compute)
+    # ── Métricas Agregadas (Compute) ─────────────────────────────────────────
+
     timesheet_hours = fields.Float(string='Horas', compute='_compute_stats')
     timesheet_cost = fields.Monetary(
         string='Costo Horas', currency_field='currency_id', compute='_compute_profitability')
@@ -125,29 +140,79 @@ class ProjectProfitabilityReport(models.TransientModel):
     profit_percentage = fields.Float(
         string='% Rentabilidad', compute='_compute_profitability')
 
-    # KPIs Counts
+    # ── KPIs de Conteo ───────────────────────────────────────────────────────
+
     task_count = fields.Integer(string='Tareas', compute='_compute_stats')
     sale_order_count = fields.Integer(
         string='Órdenes de Venta', compute='_compute_stats')
     purchase_count = fields.Integer(
         string='Órdenes de Compra', compute='_compute_stats')
-    expense_count = fields.Integer(
-        string='Gastos', compute='_compute_stats')
+    expense_count = fields.Integer(string='Gastos', compute='_compute_stats')
     requisition_count = fields.Integer(
         string='Requisiciones', compute='_compute_stats')
     stock_move_count = fields.Integer(
         string='Mov. Almacén', compute='_compute_stats')
     compensation_count = fields.Integer(
         string='Compensaciones', compute='_compute_stats')
+    invoice_count = fields.Integer(
+        string='Facturas de Cliente', compute='_compute_stats',
+        help="Número de facturas de cliente (out_invoice) generadas a partir de las "
+             "líneas de venta relacionadas al proyecto."
+    )
 
-    # Nuevo: Costos Comprometidos y KPIs
+    # ── Desglose contable por tipo de costo (lógica Odoo nativa) ─────────────
+    # Columna "Facturado/Billed"  → asiento contable en estado 'posted'
+    # Columna "Por Facturar"      → costo incurrido SIN asiento posted todavía
+    # Columna "Total"             → total de los campos ya existentes
+
+    expenses_billed = fields.Monetary(
+        string='Gastos Contabilizados', compute='_compute_profitability',
+        currency_field='currency_id',
+        help="Gastos cuya hoja tiene un asiento contable confirmado (posted).")
+    expenses_to_bill = fields.Monetary(
+        string='Gastos Por Contabilizar', compute='_compute_profitability',
+        currency_field='currency_id',
+        help="Gastos aprobados sin asiento contable confirmado todavía.")
+
+    purchases_billed = fields.Monetary(
+        string='Compras Facturadas (Proveedor)', compute='_compute_profitability',
+        currency_field='currency_id',
+        help="Valor de las cantidades con vendor bill en estado posted (qty_invoiced).")
+    purchases_to_bill = fields.Monetary(
+        string='Compras Recibidas Sin Factura', compute='_compute_profitability',
+        currency_field='currency_id',
+        help="Valor recibido pero sin vendor bill confirmado aún (qty_received − qty_invoiced).")
+
+    timesheet_billed = fields.Monetary(
+        string='Horas Contabilizadas', compute='_compute_profitability',
+        currency_field='currency_id',
+        help="Costo de horas con asiento contable posted (ej. nómina validada).")
+    timesheet_to_bill = fields.Monetary(
+        string='Horas Sin Asiento', compute='_compute_profitability',
+        currency_field='currency_id',
+        help="Costo de horas registradas sin asiento contable confirmado.")
+
+    stock_billed = fields.Monetary(
+        string='Materiales Contabilizados', compute='_compute_profitability',
+        currency_field='currency_id',
+        help="Costo de movimientos de almacén con asiento de valoración posted.")
+    stock_to_bill = fields.Monetary(
+        string='Materiales Sin Asiento', compute='_compute_profitability',
+        currency_field='currency_id',
+        help="Costo de movimientos done sin asiento de valoración confirmado.")
+
+    # Mantenidos por compatibilidad (se siguen calculando internamente)
     purchase_committed = fields.Monetary(
-        string='Costo Comprometido (Compras)', compute='_compute_profitability', currency_field='currency_id')
+        string='Costo Comprometido (Compras)', compute='_compute_profitability',
+        currency_field='currency_id')
     purchase_cost_incurred = fields.Monetary(
-        string='Costo Incurrido (Compras)', compute='_compute_profitability', currency_field='currency_id',
-        help="Compras facturadas o recibidas")
+        string='Costo Incurrido (Compras)', compute='_compute_profitability',
+        currency_field='currency_id',
+        help="Compras facturadas o recibidas.")
 
-    # KPIs Comparativos
+    # =========================================================================
+    # SECCIÓN: ONCHANGE
+    # =========================================================================
 
     @api.onchange('date_filter_type')
     def _onchange_date_filter_type(self):
@@ -165,24 +230,23 @@ class ProjectProfitabilityReport(models.TransientModel):
             self.date_from = False
             self.date_to = False
 
-        # Actualizar fechas de comparacion si aplica
-
     @api.onchange('ubicacion_ids')
     def _onchange_ubicacion_ids(self):
-        """Limpia los proyectos seleccionados si no pertenecen a las nuevas ubicaciones"""
+        """Limpia los proyectos seleccionados si no pertenecen a las nuevas ubicaciones."""
         if self.ubicacion_ids:
             self.project_ids = self.project_ids.filtered(
                 lambda p: p.ubicacion in self.ubicacion_ids)
 
-    @api.onchange('filter_type', 'task_ids', 'task_state_filter',
-                  'date_filter_type', 'date_from', 'date_to',
-                  'include_archived', 'chart_type', 'ubicacion_ids',
-                  'include_analytic_account')
+    @api.onchange(
+        'filter_type', 'task_ids', 'task_state_filter',
+        'date_filter_type', 'date_from', 'date_to',
+        'include_archived', 'chart_type', 'ubicacion_ids',
+        'include_analytic_account',
+    )
     def _onchange_filters(self):
         """
         Se ejecuta cuando cambia cualquier filtro en la interfaz.
-        Recalcula manualmente las métricas y el contenido para actualizar la vista
-        antes de que el usuario guarde.
+        Recalcula métricas y contenido para actualizar la vista antes de guardar.
         """
         self._compute_stats()
         self._compute_profitability()
@@ -190,19 +254,22 @@ class ProjectProfitabilityReport(models.TransientModel):
 
     @api.onchange('project_ids')
     def _onchange_project_ids(self):
-        """Limpia las tareas seleccionadas si no pertenecen a los nuevos proyectos"""
+        """Limpia las tareas seleccionadas si no pertenecen a los nuevos proyectos."""
         if self.project_ids:
             self.task_ids = self.task_ids.filtered(
                 lambda t: t.project_id in self.project_ids)
         else:
             self.task_ids = False
 
+    # =========================================================================
+    # SECCIÓN: HELPERS GENÉRICOS
+    # =========================================================================
+
     def _get_date_domain(self, date_field):
-        """Genera el dominio de fechas para el campo especificado"""
+        """Genera el dominio de fechas para el campo especificado."""
         self.ensure_one()
         if self.date_filter_type == 'none':
             return []
-
         domain = []
         if self.date_from:
             domain.append((date_field, '>=', self.date_from))
@@ -219,11 +286,125 @@ class ProjectProfitabilityReport(models.TransientModel):
         return src_currency._convert(
             amount, target_currency, self.env.company, date or fields.Date.context_today(self))
 
-    @api.depends('project_ids', 'filter_type', 'task_ids', 'task_state_filter', 'include_archived')
+    def _check_date(self, date_value):
+        """Verifica si una fecha cae dentro del rango de filtro activo."""
+        if not date_value:
+            return False
+        if self.date_filter_type == 'none':
+            return True
+        d = date_value.date() if hasattr(date_value, 'date') else date_value
+        if self.date_from and d < self.date_from:
+            return False
+        if self.date_to and d > self.date_to:
+            return False
+        return True
+
+    # =========================================================================
+    # SECCIÓN: HELPERS INTERNOS CENTRALIZADOS
+    # =========================================================================
+
+    def _get_filtered_projects(self):
+        """
+        Retorna los proyectos del wizard ya filtrados por ubicación.
+        Helper centralizado para evitar repetir el bloque de filtro por ubicación
+        en cada método _get_*.
+        """
+        projects = self.project_ids
+        if self.ubicacion_ids:
+            projects = projects.filtered(
+                lambda p: p.ubicacion in self.ubicacion_ids)
+        return projects
+
+    def _build_analytic_domain(self, model_name, projects):
+        """
+        Construye el bloque de dominio para búsqueda por cuenta analítica (Odoo 17).
+        Soporta campo legacy (analytic_account_id) y distribución JSON con índice GIN
+        (analytic_distribution con operador 'in').
+
+        :param model_name: nombre técnico del modelo (e.g. 'sale.order.line')
+        :param projects: recordset de project.project ya filtrado por ubicación
+        :return: dominio listo para expression.OR/AND, o [] si no aplica
+        """
+        if not self.include_analytic_account or not projects:
+            return []
+
+        analytics = projects.mapped('analytic_account_id')
+        if not analytics:
+            return []
+
+        model_fields = self.env[model_name]._fields
+        analytic_criteria = []
+
+        # Campo legacy (Odoo < 17)
+        if 'analytic_account_id' in model_fields:
+            analytic_criteria.append(
+                [('analytic_account_id', 'in', analytics.ids)])
+
+        # Odoo 17+: operador 'in' usa el índice GIN y _search_analytic_distribution
+        # del mixin, que maneja correctamente claves compuestas como {'8167,7983': 100.0}
+        # NO usar 'ilike' — ese hace name_search por nombre, no por ID.
+        if 'analytic_distribution' in model_fields:
+            analytic_criteria.append(
+                [('analytic_distribution', 'in', analytics.ids)])
+
+        return expression.OR(analytic_criteria) if analytic_criteria else []
+
+    def _get_purchase_linked_move_ids(self, move_ids):
+        """
+        Retorna el conjunto de IDs de stock.move vinculados a una línea de compra.
+        Usa SQL directo sobre purchase_line_id (columna estándar) para máxima eficiencia.
+
+        CORRECCIÓN 4: extraído como helper para eliminar el bloque SQL duplicado que
+        antes aparecía tanto en _get_profitability_data como en _compute_content.
+
+        :param move_ids: list de IDs de stock.move
+        :return: set de IDs vinculados a compras
+        """
+        if not move_ids:
+            return set()
+        self.env.cr.execute(
+            "SELECT id FROM stock_move WHERE id = ANY(%s) AND purchase_line_id IS NOT NULL",
+            [move_ids],
+        )
+        return {row[0] for row in self.env.cr.fetchall()}
+
+    def _filter_non_purchase_moves(self, moves):
+        """
+        Filtra un recordset de stock.move eliminando los vinculados a compras.
+        Evita doble conteo entre el módulo de compras y el de almacén.
+        """
+        purchase_linked_ids = self._get_purchase_linked_move_ids(moves.ids)
+        has_purchase_on_picking = 'purchase_id' in self.env['stock.picking']._fields
+        return moves.filtered(
+            lambda m: m.id not in purchase_linked_ids
+            and not (has_purchase_on_picking and m.picking_id.purchase_id)
+        )
+
+    def _get_expense_amount_field(self):
+        """
+        Detecta qué campo de monto usar en hr.expense según la versión de Odoo.
+        Centralizado para no repetir la detección dentro de bucles.
+        """
+        Expense = self.env['hr.expense']
+        if 'untaxed_amount_currency' in Expense._fields:
+            return 'untaxed_amount_currency'
+        if 'untaxed_amount' in Expense._fields:
+            return 'untaxed_amount'
+        return None  # Fallback a total_amount_currency / total_amount
+
+    # =========================================================================
+    # SECCIÓN: FUENTE DE VERDAD — TAREAS FILTRADAS
+    # =========================================================================
+
+    # CORRECCIÓN 2 ─────────────────────────────────────────────────────────────
+    # Antes: @api.depends en un método helper sin campo compute → sin efecto,
+    # confunde al lector y viola convenciones Odoo.
+    # Ahora: método helper sin decorador.
+    # ──────────────────────────────────────────────────────────────────────────
     def _get_filtered_tasks(self):
         """
         Retorna el recordset de tareas basado en los filtros aplicados.
-        Este método es la FUENTE DE VERDAD para qué tareas se consideran en el análisis.
+        FUENTE DE VERDAD para qué tareas se consideran en el análisis.
         """
         self.ensure_one()
         if not self.project_ids:
@@ -231,12 +412,10 @@ class ProjectProfitabilityReport(models.TransientModel):
 
         domain = [('project_id', 'in', self.project_ids.ids)]
 
-        # Filtro por Ubicación
         if self.ubicacion_ids:
             domain.append(
                 ('project_id.ubicacion', 'in', self.ubicacion_ids.ids))
 
-        # Manejo de tareas archivadas
         context = self.env.context.copy()
         if self.include_archived:
             context['active_test'] = False
@@ -244,28 +423,35 @@ class ProjectProfitabilityReport(models.TransientModel):
         else:
             Task = self.env['project.task']
 
-        if self.filter_type == 'filter':
-            if self.task_ids:
-                return self.task_ids
+        if self.filter_type == 'filter' and self.task_ids:
+            return self.task_ids
 
-        # Filtro por estado predefinido (En Proceso, Hecho, etc.)
         if self.task_state_filter == 'all':
             domain.append(('state', '!=', '1_canceled'))
         elif self.task_state_filter:
-            # Mapeo directo para estados específicos
             domain.append(('state', '=', self.task_state_filter))
 
         return Task.search(domain)
 
+    # =========================================================================
+    # SECCIÓN: LÓGICA DE VENTAS (INGRESOS)
+    # =========================================================================
+
     def _get_sale_order_lines(self):
-        """Retorna las Líneas de Venta específicas vinculadas al proyecto/tareas."""
+        """
+        Obtiene las líneas de venta relacionadas al proyecto.
+        Reglas de Negocio:
+        1. Líneas vinculadas explícitamente a las tareas del proyecto.
+        2. Líneas vinculadas al proyecto (cabecera o línea).
+        3. Si include_analytic_account está activo: líneas cuya distribución analítica
+           contenga la cuenta analítica del proyecto (operador 'in' + índice GIN).
+        """
         self.ensure_one()
         tasks = self._get_filtered_tasks()
         all_tasks = tasks | tasks.mapped('child_ids')
 
         final_domain = [('state', 'in', ['sale', 'done'])]
 
-        # Date Filter (Applied to Order Date)
         if self.date_filter_type != 'none':
             if self.date_from:
                 final_domain.append(
@@ -274,79 +460,81 @@ class ProjectProfitabilityReport(models.TransientModel):
                 final_domain.append(
                     ('order_id.date_order', '<=', self.date_to))
 
-        # Criterios Principales
-        # 1. Vinculado a Tarea
-        # 2. Vinculado a Proyecto (Cabecera o Línea)
-        # 3. Vinculado a Cuenta Analítica (Híbrido)
+        # 1. Tarea
+        domain_task = [('task_id', 'in', all_tasks.ids)]
 
-        # Base: Vinculado a tareas filtradas
-        criteria = [('task_id', 'in', all_tasks.ids)]
-
-        # Contexto de Proyectos
-        projects = self.project_ids
-        if self.ubicacion_ids:
-            projects = projects.filtered(
-                lambda p: p.ubicacion in self.ubicacion_ids)
-
+        # 2. Proyecto (cabecera OR línea)
+        # CORRECCIÓN 1: usar _get_filtered_projects() en lugar de repetir el bloque
+        domain_project = []
+        projects = self._get_filtered_projects()
         if projects:
-            # Opción A: Vinculación Directa por Proyecto
-            project_domain = [('order_id.project_id', 'in', projects.ids)]
+            parts = [('order_id.project_id', 'in', projects.ids)]
             if 'project_id' in self.env['sale.order.line']._fields:
-                project_domain.append(('project_id', 'in', projects.ids))
+                parts.append(('project_id', 'in', projects.ids))
+            domain_project = expression.OR([[p] for p in parts])
 
-            # Opción B: Vinculación por Cuenta Analítica (Si está activo)
-            analytic_domain = []
-            if self.include_analytic_account:
-                analytics = projects.mapped('analytic_account_id')
-                if analytics:
-                    # Verificar campos disponibles en SOL y SO
-                    if 'analytic_account_id' in self.env['sale.order']._fields:
-                        analytic_domain.append(
-                            ('order_id.analytic_account_id', 'in', analytics.ids))
+        # 3. Bloque Analítico (CORRECCIÓN 1: usar helper centralizado)
+        domain_analytic = self._build_analytic_domain(
+            'sale.order.line', projects)
+        _logger.info('[SOL] include_analytic_account=%s | analytics ids=%s',
+                     self.include_analytic_account,
+                     projects.mapped('analytic_account_id').ids if projects else [])
+        _logger.info('[SOL] Campo analytic_distribution en SOL: %s',
+                     'analytic_distribution' in self.env['sale.order.line']._fields)
 
-                    # Odoo 17 usa analytic_distribution (JSON), búsqueda difícil por ORM simple.
-                    # Buscamos campos legacy o custom si existen.
-                    if 'analytic_account_id' in self.env['sale.order.line']._fields:
-                        analytic_domain.append(
-                            ('analytic_account_id', 'in', analytics.ids))
+        link_parts = [p for p in [domain_task,
+                                  domain_project, domain_analytic] if p]
+        link_domain = expression.OR(link_parts) if link_parts else []
 
-            # Combinar lógica: (Tarea) O (Proyecto) O (Analítica)
-            # Pero la estructura es search([ (Base_Filtros_Globales) AND ( (Tarea) OR (Proyecto) OR (Analítica) ) ])
-            # Aquí 'criteria' es una lista de condiciones OR.
+        full_domain = expression.AND(
+            [final_domain, link_domain]) if link_domain else final_domain
+        _logger.info('[SOL] === DOMINIO FINAL _get_sale_order_lines ===')
+        for i, leaf in enumerate(full_domain):
+            _logger.info('[SOL]   [%d] %s', i, leaf)
 
-            # Agregamos dominios de proyecto a criteria
-            criteria.extend(project_domain)
-
-            # Agregamos dominios analíticos a criteria
-            criteria.extend(analytic_domain)
-
-        # Construir dominio OR global para los criterios de vinculación
-        # filter_domain AND ( Criterio1 OR Criterio2 OR ... )
-        link_domain = []
-        if len(criteria) > 1:
-            link_domain = ['|'] * (len(criteria) - 1)
-        link_domain += criteria
-
-        # Combinar con dominio base (Estados y Fechas ya están en final_domain)
-        # final_domain = [Conditions]
-        # Queremos: final_domain AND link_domain
-
-        return self.env['sale.order.line'].search(final_domain + link_domain)
+        return self.env['sale.order.line'].search(full_domain)
 
     def _get_sale_orders(self):
-        """Retorna las órdenes de venta distintas derivadas de las líneas"""
+        """Retorna las órdenes de venta distintas derivadas de las líneas."""
         return self._get_sale_order_lines().mapped('order_id')
 
+    def _get_related_invoices(self):
+        """
+        Obtiene las facturas de cliente (account.move, tipo out_invoice) vinculadas
+        a las órdenes de venta derivadas de las líneas de venta filtradas.
+
+        Flujo:
+          _get_sale_order_lines() → líneas filtradas por proyecto/tarea/analítica
+              → mapped('order_id')           → órdenes de venta confirmadas
+              → mapped('invoice_ids')        → todos los account.move vinculados
+              → filtered(out_invoice)        → sólo facturas de cliente
+
+        Se usa `mapped` en cadena para aprovechar el caché del ORM y evitar N+1 queries.
+        """
+        self.ensure_one()
+        sale_lines = self._get_sale_order_lines()
+        if not sale_lines:
+            return self.env['account.move']
+        all_invoices = sale_lines.mapped('order_id.invoice_ids')
+        return all_invoices.filtered(
+            lambda inv: inv.move_type == 'out_invoice'
+        )
+
+    # =========================================================================
+    # SECCIÓN: LÓGICA DE COMPRAS
+    # =========================================================================
+
     def _get_purchase_order_lines(self):
-        """Retorna las Líneas de Compra específicas"""
+        """
+        Obtiene líneas de compra comprometidas o realizadas.
+        Reglas de Negocio:
+        1. Búsqueda por Tarea, Proyecto Directo o Cuenta Analítica.
+        2. Soporte Odoo 17 para Analytic Distribution con operador 'in' + índice GIN.
+        """
         self.ensure_one()
         tasks = self._get_filtered_tasks()
         all_tasks = tasks | tasks.mapped('child_ids')
 
-        # El estado de línea usualmente coincide con la orden, pero es más seguro verificar la orden.
-        # POL no siempre tiene 'state'. PO sí.
-        # En realidad purchase.order.line tiene 'state' relacionado a order.state usualmente.
-        # Pero verifiquemos order_id.state en el dominio para alinearnos al estándar.
         final_domain = [('order_id.state', 'in', ['purchase', 'done'])]
 
         if self.date_filter_type != 'none':
@@ -357,58 +545,48 @@ class ProjectProfitabilityReport(models.TransientModel):
                 final_domain.append(
                     ('order_id.date_order', '<=', self.date_to))
 
-        # Criterios Principales
-        # 1. Vinculado a Tarea
-        # 2. Vinculado a Proyecto
-        # 3. Vinculado a Cuenta Analítica (Híbrido)
+        # 1. Tarea
+        domain_task = [('task_id', 'in', all_tasks.ids)]
 
-        # Base: Vinculado a tareas filtradas
-        criteria = [('task_id', 'in', all_tasks.ids)]
-
-        # Contexto de Proyectos
-        projects = self.project_ids
-        if self.ubicacion_ids:
-            projects = projects.filtered(
-                lambda p: p.ubicacion in self.ubicacion_ids)
-
+        # 2. Proyecto (CORRECCIÓN 1: helper centralizado)
+        domain_project = []
+        projects = self._get_filtered_projects()
         if projects:
-            # Opción A: Vinculación Directa por Proyecto
-            project_domain = [('order_id.project_id', 'in', projects.ids)]
+            parts = [('order_id.project_id', 'in', projects.ids)]
             if 'project_id' in self.env['purchase.order.line']._fields:
-                project_domain.append(('project_id', 'in', projects.ids))
+                parts.append(('project_id', 'in', projects.ids))
+            domain_project = expression.OR([[p] for p in parts])
 
-            # Opción B: Vinculación por Cuenta Analítica (Si está activo)
-            analytic_domain = []
-            if self.include_analytic_account:
-                analytics = projects.mapped('analytic_account_id')
-                if analytics:
-                    # Verificar campos disponibles en POL y PO
-                    if 'analytic_account_id' in self.env['purchase.order.line']._fields:
-                        analytic_domain.append(
-                            ('analytic_account_id', 'in', analytics.ids))
+        # 3. Bloque Analítico (CORRECCIÓN 1: helper centralizado)
+        domain_analytic = self._build_analytic_domain(
+            'purchase.order.line', projects)
+        _logger.info('[POL] include_analytic_account=%s | analytics ids=%s',
+                     self.include_analytic_account,
+                     projects.mapped('analytic_account_id').ids if projects else [])
+        _logger.info('[POL] Campo analytic_distribution en POL: %s',
+                     'analytic_distribution' in self.env['purchase.order.line']._fields)
 
-                    # A veces la cuenta analítica está en la cabecera (custom)
-                    if 'analytic_account_id' in self.env['purchase.order']._fields:
-                        analytic_domain.append(
-                            ('order_id.analytic_account_id', 'in', analytics.ids))
+        link_parts = [p for p in [domain_task,
+                                  domain_project, domain_analytic] if p]
+        link_domain = expression.OR(link_parts) if link_parts else []
 
-            # Combinar lógica: (Tarea) O (Proyecto) O (Analítica)
-            criteria.extend(project_domain)
-            criteria.extend(analytic_domain)
+        full_domain = expression.AND(
+            [final_domain, link_domain]) if link_domain else final_domain
+        _logger.info('[POL] === DOMINIO FINAL _get_purchase_order_lines ===')
+        for i, leaf in enumerate(full_domain):
+            _logger.info('[POL]   [%d] %s', i, leaf)
 
-        # Construir dominio OR global
-        link_domain = []
-        if len(criteria) > 1:
-            link_domain = ['|'] * (len(criteria) - 1)
-        link_domain += criteria
-
-        return self.env['purchase.order.line'].search(final_domain + link_domain)
+        return self.env['purchase.order.line'].search(full_domain)
 
     def _get_purchase_orders(self):
         return self._get_purchase_order_lines().mapped('order_id')
 
+    # =========================================================================
+    # SECCIÓN: LÓGICA DE STOCK Y MOVIMIENTOS
+    # =========================================================================
+
     def _get_stock_moves(self):
-        """Retorna los Movimientos de Almacén específicos"""
+        """Retorna los Movimientos de Almacén específicos vinculados al proyecto."""
         self.ensure_one()
         tasks = self._get_filtered_tasks()
         all_tasks = tasks | tasks.mapped('child_ids')
@@ -421,58 +599,50 @@ class ProjectProfitabilityReport(models.TransientModel):
             if self.date_to:
                 final_domain.append(('date', '<=', self.date_to))
 
-        criteria = [('task_id', 'in', all_tasks.ids)]
-        # Filtrar proyectos por Ubicación
-        projects = self.project_ids
-        if self.ubicacion_ids:
-            projects = projects.filtered(
-                lambda p: p.ubicacion in self.ubicacion_ids)
+        # 1. Tarea
+        domain_task = [('task_id', 'in', all_tasks.ids)]
 
+        # 2. Proyecto (CORRECCIÓN 1: helper centralizado)
+        domain_project = []
+        projects = self._get_filtered_projects()
         if projects:
-            criteria.append(
-                ('picking_id.project_id', 'in', projects.ids))
+            parts = [('picking_id.project_id', 'in', projects.ids)]
             if 'project_id' in self.env['stock.move']._fields:
-                criteria.append(('project_id', 'in', projects.ids))
+                parts.append(('project_id', 'in', projects.ids))
+            domain_project = expression.OR([[p] for p in parts])
 
-        if len(criteria) > 1:
-            final_domain += ['|'] * (len(criteria) - 1)
-        final_domain += criteria
+        link_parts = [p for p in [domain_task, domain_project] if p]
+        link_domain = expression.OR(link_parts) if link_parts else []
 
-        return self.env['stock.move'].search(final_domain)
+        full_domain = expression.AND(
+            [final_domain, link_domain]) if link_domain else final_domain
+        return self.env['stock.move'].search(full_domain)
+
+    # =========================================================================
+    # SECCIÓN: LÓGICA DE HOJAS DE HORAS (TIMESHEETS)
+    # =========================================================================
 
     def _get_timesheets(self):
-        """Returns specific Analytic Lines (Timesheets)"""
+        """
+        Retorna las líneas analíticas (horas) asociadas al proyecto.
+        Reglas de Negocio:
+        1. Si hay filtro de tareas: solo horas de esas tareas.
+        2. Si NO hay filtro de tareas: horas vinculadas al proyecto (incluyendo huérfanos).
+        """
         self.ensure_one()
         tasks = self._get_filtered_tasks()
         all_tasks = tasks | tasks.mapped('child_ids')
 
-        # Base Domain
         domain = []
 
-        # 1. Contexto de Proyecto
-        projects = self.project_ids
-        if self.ubicacion_ids:
-            projects = projects.filtered(
-                lambda p: p.ubicacion in self.ubicacion_ids)
-
+        # CORRECCIÓN 1: helper centralizado
+        projects = self._get_filtered_projects()
         if projects:
             domain.append(('project_id', 'in', projects.ids))
 
-        # 2. Lógica de Tareas / Huérfanos
-        # Si se seleccionan tareas específicas, filtramos estrictamente por ellas.
-        # Si NO se seleccionan tareas (Filtro 'Todas'), queremos incluir "Huérfanos" (Timesheets sin Tarea)
-        # porque son parte del costo del proyecto.
         if self.task_ids:
-            # Tareas específicas seleccionadas -> Filtro estricto
             domain.append(('task_id', 'in', all_tasks.ids))
-        else:
-            # Sin tareas específicas -> Permitir TODOS los timesheets del proyecto
-            # Confiamos en el filtro project_id agregado en el paso 1.
-            # NO filtramos por task_id aquí para obtener task_id=False (huérfanos) Y task_id=Cualquiera (vinculados).
-            # Instrucción de usuario: "Si el usuario NO ha filtrado tareas específicas... permite que task_id sea False o cualquiera."
-            pass
 
-        # 3. Date Filter
         if self.date_filter_type != 'none':
             if self.date_from:
                 domain.append(('date', '>=', self.date_from))
@@ -481,41 +651,31 @@ class ProjectProfitabilityReport(models.TransientModel):
 
         return self.env['account.analytic.line'].sudo().search(domain)
 
+    # =========================================================================
+    # SECCIÓN: LÓGICA DE COMPENSACIONES
+    # =========================================================================
+
     def _get_compensations(self):
-        """Retorna las Líneas de Compensación específicas"""
+        """Obtiene líneas de compensación (nómina/extras) en estado Aplicado."""
         self.ensure_one()
         tasks = self._get_filtered_tasks()
         all_tasks = tasks | tasks.mapped('child_ids')
 
-        # Dominio Base: Estado Aplicado (Solicitud estricta de usuario)
         domain = [('compensation_id.state', '=', 'applied')]
 
-        # Vínculo Tarea / Proyecto
-        # Verificar si project_id existe en compensation.line
         has_project = 'project_id' in self.env['compensation.line']._fields
-
         if has_project:
-            # Lógica Inclusiva similar a Timesheets
-            projects = self.project_ids
-            if self.ubicacion_ids:
-                projects = projects.filtered(
-                    lambda p: p.ubicacion in self.ubicacion_ids)
-
-            # (Tarea en Filtradas) O (Proyecto en Proyectos Y Tarea es False)
-            domain.append('|')
-            domain.append(('task_id', 'in', all_tasks.ids))
-            domain.append('&')
-            domain.append(('project_id', 'in', projects.ids))
-            domain.append(('task_id', '=', False))
+            # CORRECCIÓN 1: helper centralizado
+            projects = self._get_filtered_projects()
+            domain += ['|',
+                       ('task_id', 'in', all_tasks.ids),
+                       '&',
+                       ('project_id', 'in', projects.ids),
+                       ('task_id', '=', False)]
         else:
-            # Fallback a solo vínculo de Tarea
             domain.append(('task_id', 'in', all_tasks.ids))
 
-        # Filtro de Fecha
-        # compensation.line podría no tener 'date', verificar campo o usar create_date
-        date_field = 'create_date'
-        if 'date' in self.env['compensation.line']._fields:
-            date_field = 'date'
+        date_field = 'date' if 'date' in self.env['compensation.line']._fields else 'create_date'
 
         if self.date_filter_type != 'none':
             if self.date_from:
@@ -525,25 +685,88 @@ class ProjectProfitabilityReport(models.TransientModel):
 
         return self.env['compensation.line'].search(domain)
 
+    # =========================================================================
+    # HELPERS DE CONVERSIÓN MASIVA (Anti N+1)
+    # =========================================================================
+
+    def _convert_grouped_by_currency(self, records, amount_getter, date_getter, target_currency):
+        """
+        Convierte montos de un recordset agrupando por (currency_id, fecha) para minimizar
+        llamadas a la API de tipos de cambio (evita el problema N+1).
+
+        :param records: recordset de Odoo
+        :param amount_getter: callable(record) -> float
+        :param date_getter:   callable(record) -> date
+        :param target_currency: res.currency destino
+        :return: float total convertido
+        """
+        groups = defaultdict(float)
+        company = self.env.company
+
+        for rec in records:
+            amount = amount_getter(rec)
+            if not amount:
+                continue
+            src_curr = rec.currency_id if rec.currency_id else self.env.company.currency_id
+            doc_date = date_getter(rec) or fields.Date.context_today(self)
+            if hasattr(doc_date, 'date'):
+                doc_date = doc_date.date()
+            groups[(src_curr.id, doc_date)] += amount
+
+        currencies = {
+            c.id: c for c in self.env['res.currency'].browse(
+                list({cid for cid, _ in groups})
+            )
+        }
+
+        total = 0.0
+        for (cid, doc_date), amount in groups.items():
+            src_curr = currencies.get(cid, target_currency)
+            total += amount if src_curr == target_currency else src_curr._convert(
+                amount, target_currency, company, doc_date)
+        return total
+
+    def _get_stock_valuation_bulk(self, stock_moves):
+        """
+        Búsqueda masiva de capas de valoración para un conjunto de movimientos.
+        Evita acceder a move.stock_valuation_layer_ids dentro de un bucle (N+1).
+
+        :param stock_moves: recordset de stock.move
+        :return: dict {move_id: float (valor absoluto total)}
+        """
+        if not stock_moves:
+            return {}
+        layers = self.env['stock.valuation.layer'].sudo().search([
+            ('stock_move_id', 'in', stock_moves.ids)
+        ])
+        result = defaultdict(float)
+        for layer in layers:
+            result[layer.stock_move_id.id] += abs(layer.value)
+        return result
+
+    # =========================================================================
+    # SECCIÓN: CÁLCULO DE RENTABILIDAD
+    # =========================================================================
+
     def _get_profitability_data(self, projects, date_from, date_to):
         """
         Calcula la rentabilidad para un set de proyectos en un rango de fechas.
-        Retorna un diccionario con las métricas.
+
+        ESTRATEGIA DE RENDIMIENTO:
+        - Conversión de Moneda Agrupada: reduce N+1 agrupando por (Moneda, Fecha).
+        - Stock Valuation Bulk: capas de valoración en una sola query.
+        - Cálculos en Memoria: sin escrituras ni lecturas redundantes en BD.
         """
         if not projects:
             return defaultdict(float)
 
-        # Los helpers usan self.project_ids. Asumimos que projects pasado aquí == self.project_ids
-        # o aceptamos que los helpers usan el contexto del wizard.
-
         target_currency = self.currency_id
         company_currency = self.env.company.currency_id
+        company = self.env.company
 
-        # Helper para conversión con fecha específica
         def convert(amount, src_curr, date):
             return self._convert_amount(amount, src_curr, target_currency, date)
 
-        # Helper para dominio de fechas dinámico (Uso local para Facturas)
         def get_date_domain(field_name):
             d_dom = []
             if date_from:
@@ -552,138 +775,274 @@ class ProjectProfitabilityReport(models.TransientModel):
                 d_dom.append((field_name, '<=', date_to))
             return d_dom
 
-        # --- INGRESOS ---
+        # ── A. INGRESOS ──────────────────────────────────────────────────────
         sols = self._get_sale_order_lines()
-        expected = sum(convert(sol.price_subtotal, sol.currency_id, None)
-                       for sol in sols)
+
+        expected = self._convert_grouped_by_currency(
+            sols,
+            amount_getter=lambda s: s.price_subtotal,
+            date_getter=lambda s: s.order_id.date_order,
+            target_currency=target_currency,
+        )
 
         inv_domain = [('move_id.state', '=', 'posted')] + \
             get_date_domain('move_id.invoice_date')
         posted_lines = sols.mapped('invoice_lines').filtered_domain(inv_domain)
-        invoiced = sum(convert(l.price_subtotal, l.currency_id,
-                       l.move_id.invoice_date) for l in posted_lines)
+        invoiced = self._convert_grouped_by_currency(
+            posted_lines,
+            amount_getter=lambda l: l.price_subtotal,
+            date_getter=lambda l: l.move_id.invoice_date,
+            target_currency=target_currency,
+        )
 
-        # To Invoice logic (simplified for report)
-        # We use the un-invoiced amount of the filtered SOLs
         to_invoice = 0.0
+        to_inv_groups = defaultdict(float)
         for sol in sols:
-            # qty_to_invoice is natively computed
             qty_to_inv = sol.qty_to_invoice
             if qty_to_inv > 0:
-                amount = qty_to_inv * sol.price_unit
-                to_invoice += convert(amount, sol.currency_id,
-                                      sol.order_id.date_order)
+                src_curr_id = sol.currency_id.id
+                doc_date = sol.order_id.date_order
+                if hasattr(doc_date, 'date'):
+                    doc_date = doc_date.date()
+                to_inv_groups[(src_curr_id, doc_date)
+                              ] += qty_to_inv * sol.price_unit
 
-        # --- 2. COSTOS ---
+        currencies_cache = {
+            c.id: c for c in self.env['res.currency'].browse(
+                list({cid for cid, _ in to_inv_groups})
+            )
+        }
+        for (cid, doc_date), amount in to_inv_groups.items():
+            src_curr = currencies_cache.get(cid, target_currency)
+            to_invoice += amount if src_curr == target_currency else src_curr._convert(
+                amount, target_currency, company, doc_date)
 
-        # A. GASTOS
+        # ── B. GASTOS ─────────────────────────────────────────────────────────
+        # Lógica contable Odoo nativa:
+        #   billed   = hoja de gastos con account_move_id en estado 'posted'
+        #   to_bill  = aprobado pero sin asiento contable confirmado todavía
+        #   total    = todos los gastos aprobados (billed + to_bill)
         tasks = self._get_filtered_tasks()
         all_tasks = tasks | tasks.mapped('child_ids')
         expense_domain = self._get_expense_domain(all_tasks)
         expenses = self.env['hr.expense'].sudo().search(expense_domain)
 
-        total_expenses = 0.0
-        for exp in expenses:
-            # Prio 1: Neto en Moneda Original (Ideal)
-            if 'untaxed_amount_currency' in self.env['hr.expense']._fields:
-                amount = exp.untaxed_amount_currency
-            # Prio 2: Neto en Moneda Compañía
-            elif 'untaxed_amount' in self.env['hr.expense']._fields:
-                amount = exp.untaxed_amount
-            # Prio 3: Fallback a Total (Bruto)
-            else:
-                amount = getattr(exp, 'total_amount_currency',
-                                 0.0) or exp.total_amount
+        # CORRECCIÓN 1: helper centralizado para detección del campo de monto
+        _exp_amount_field = self._get_expense_amount_field()
 
-            total_expenses += convert(amount, exp.currency_id, exp.date)
+        def _expense_amount(exp):
+            if _exp_amount_field:
+                return getattr(exp, _exp_amount_field, 0.0) or 0.0
+            return getattr(exp, 'total_amount_currency', 0.0) or exp.total_amount
 
-        # B. COMPRAS (Estricto: Incurrido vs Comprometido)
+        # Detectar el campo de asiento en hr.expense.sheet en runtime
+        # (el nombre varía según versión: account_move_id vs account_move_ids vs move_id)
+        sheet_model = self.env['hr.expense.sheet']
+        sheet_fields = sheet_model._fields
+
+        if 'account_move_id' in sheet_fields:
+            # Odoo ≤16: Many2one directo
+            expenses.mapped('sheet_id.account_move_id.state')
+            exp_billed = expenses.filtered(
+                lambda e: e.sheet_id.account_move_id
+                          and e.sheet_id.account_move_id.state == 'posted'
+            )
+        elif 'account_move_ids' in sheet_fields:
+            # Odoo 17+: puede ser Many2many
+            expenses.mapped('sheet_id.account_move_ids.state')
+            exp_billed = expenses.filtered(
+                lambda e: any(
+                    m.state == 'posted'
+                    for m in e.sheet_id.account_move_ids
+                )
+            )
+        elif 'move_id' in sheet_fields:
+            # Nombre alternativo
+            expenses.mapped('sheet_id.move_id.state')
+            exp_billed = expenses.filtered(
+                lambda e: e.sheet_id.move_id
+                          and e.sheet_id.move_id.state == 'posted'
+            )
+        else:
+            # Fallback: usar el estado de la hoja como proxy contable
+            # 'post' y 'done' implican que el asiento fue generado/confirmado
+            exp_billed = expenses.filtered(
+                lambda e: e.sheet_id.state in ('post', 'done')
+            )
+
+        exp_to_bill = expenses - exp_billed
+
+        exp_billed_total = self._convert_grouped_by_currency(
+            exp_billed, _expense_amount, lambda e: e.date, target_currency)
+        exp_to_bill_total = self._convert_grouped_by_currency(
+            exp_to_bill, _expense_amount, lambda e: e.date, target_currency)
+        total_expenses = exp_billed_total + exp_to_bill_total
+
+        # ── C. COMPRAS ────────────────────────────────────────────────────────
+        # Lógica contable Odoo nativa:
+        #   billed   = qty_invoiced × price_unit  (vendor bill en 'posted')
+        #   to_bill  = (qty_received − qty_invoiced) × price_unit (recibido sin bill)
+        #   total    = price_subtotal (cantidad ordenada × precio)
+        # El "comprometido" (pedido pero no recibido) no ocupa columna propia;
+        # se infiere como total − billed − to_bill.
         purchase_lines = self._get_purchase_order_lines()
 
-        p_incurred = 0.0
-        p_committed = 0.0
+        p_billed_groups   = defaultdict(float)
+        p_to_bill_groups  = defaultdict(float)
+        p_total_groups    = defaultdict(float)
 
         for pl in purchase_lines:
-            qty_done = max(pl.qty_invoiced, pl.qty_received)
-            qty_ordered = pl.product_qty
-            price_subtotal = pl.price_subtotal
-            date_doc = pl.date_order
+            qty_invoiced   = pl.qty_invoiced or 0.0
+            qty_received   = pl.qty_received or 0.0
+            qty_ordered    = pl.product_qty  or 0.0
+            qty_to_bill    = max(0.0, qty_received - qty_invoiced)
+            price          = pl.price_unit   or 0.0
+            price_subtotal = pl.price_subtotal or 0.0
 
-            if qty_ordered:
-                ratio = qty_done / qty_ordered
-            else:
-                ratio = 0.0
+            date_doc = pl.order_id.date_order
+            if hasattr(date_doc, 'date'):
+                date_doc = date_doc.date()
 
-            # Incurrido basado en el ratio del monto total (subtotal)
-            amount_incurred = price_subtotal * ratio
+            key = (pl.currency_id.id, date_doc)
 
-            # Comprometido es el remanente para alcanzar el subtotal
-            amount_committed = price_subtotal - amount_incurred
+            # billed   = vendor bill confirmado (qty_invoiced × price)
+            if qty_invoiced:
+                p_billed_groups[key]  += qty_invoiced * price
 
-            # Convertir resultados a moneda del reporte
-            if amount_incurred:
-                p_incurred += convert(amount_incurred,
-                                      pl.currency_id, date_doc)
+            # to_bill  = recibido sin vendor bill todavía (qty_received > qty_invoiced)
+            if qty_to_bill:
+                p_to_bill_groups[key] += qty_to_bill * price
 
-            if amount_committed:
-                p_committed += convert(amount_committed,
-                                       pl.currency_id, date_doc)
+            # total    = total de la línea de orden (price_subtotal incluye descuentos)
+            if price_subtotal:
+                p_total_groups[key]   += price_subtotal
 
-        total_purchases = p_incurred + p_committed
+        # Resolver currencies en un solo browse (anti-N+1)
+        all_pur_cids = list({cid for cid, _ in
+                             list(p_billed_groups) +
+                             list(p_to_bill_groups) +
+                             list(p_total_groups)})
+        pur_currencies = {c.id: c
+                          for c in self.env['res.currency'].browse(all_pur_cids)}
 
-        # C. STOCK (Valoración Real desde Capas - Layers)
+        def _conv_groups(groups):
+            total = 0.0
+            for (cid, doc_date), amount in groups.items():
+                src = pur_currencies.get(cid, target_currency)
+                total += (amount if src == target_currency
+                          else src._convert(amount, target_currency, company, doc_date))
+            return total
+
+        p_billed       = _conv_groups(p_billed_groups)
+        p_to_bill_pur  = _conv_groups(p_to_bill_groups)
+        total_purchases = _conv_groups(p_total_groups)
+
+        # Compatibilidad con código anterior que usaba incurred/committed
+        p_incurred  = p_billed + p_to_bill_pur
+        p_committed = total_purchases - p_incurred
+
+        # ── D. STOCK ─────────────────────────────────────────────────────────
+        # Lógica contable Odoo nativa:
+        #   billed   = move con stock.valuation.layer que tiene account_move posted
+        #   to_bill  = move done pero sin asiento de valoración confirmado
+        #              (ej: método de costo estándar sin contabilidad de inventario)
+        #   total    = todos los moves done (billed + to_bill)
         stock_moves = self._get_stock_moves()
-        stock_cost = 0.0
 
-        for move in stock_moves:
-            # 1. Regla Anti-Duplicidad: Saltar si está vinculado a Compra
-            if move.purchase_line_id or move.picking_id.purchase_id:
-                continue
+        # CORRECCIÓN 4: helper único en lugar de SQL inline duplicado
+        valid_moves = self._filter_non_purchase_moves(stock_moves)
 
-            # 2. Valoración (Fuente de Verdad)
-            layers = move.stock_valuation_layer_ids
-            move_cost = 0.0
+        valid_moves.mapped('location_id.usage')
+        valid_moves.mapped('location_dest_id.usage')
 
-            if layers:
-                total_val = sum(abs(l.value) for l in layers)
-                move_cost = convert(total_val, company_currency, move.date)
+        layer_values = self._get_stock_valuation_bulk(valid_moves)
+
+        # Detectar qué moves tienen asiento de valoración posted (en batch, anti-N+1)
+        # account_move_id es el campo estándar de stock.valuation.layer en Odoo 17
+        moves_with_posted_account = set()
+        if valid_moves:
+            svl_model = self.env['stock.valuation.layer']
+            svl_fields = svl_model._fields
+            if 'account_move_id' in svl_fields:
+                svl_posted = svl_model.sudo().search([
+                    ('stock_move_id', 'in', valid_moves.ids),
+                    ('account_move_id', '!=', False),
+                    ('account_move_id.state', '=', 'posted'),
+                ])
+                moves_with_posted_account = set(svl_posted.mapped('stock_move_id.id'))
             else:
+                # Fallback: todos los moves done se consideran contabilizados
+                # si el método de valoración genera asientos automáticamente
+                valuation_method = self.env.company.sudo().property_cost_method
+                auto_accounting = (valuation_method in ('average', 'fifo'))
+                if auto_accounting:
+                    moves_with_posted_account = set(valid_moves.ids)
+
+        stock_billed_out   = defaultdict(float)
+        stock_billed_in    = defaultdict(float)
+        stock_to_bill_out  = defaultdict(float)
+        stock_to_bill_in   = defaultdict(float)
+
+        for move in valid_moves:
+            total_val = layer_values.get(move.id)
+            if total_val is None:
                 val_unit = move.price_unit or move.product_id.standard_price
                 qty = move.quantity if move.state == 'done' else move.product_uom_qty
-                move_cost = convert(
-                    val_unit * qty, company_currency, move.date)
+                total_val = val_unit * qty
 
-            # 3. Lógica Financiera de Signos
-            is_outgoing = move.location_id.usage == 'internal' and move.location_dest_id.usage != 'internal'
-            is_return = move.location_id.usage != 'internal' and move.location_dest_id.usage == 'internal'
-            # Traslados Internos (Int -> Int) son Neutros (Efecto 0 en rentabilidad)
+            is_outgoing = (move.location_id.usage == 'internal'
+                           and move.location_dest_id.usage != 'internal')
+            is_return   = (move.location_id.usage != 'internal'
+                           and move.location_dest_id.usage == 'internal')
+
+            doc_date = move.date
+            if hasattr(doc_date, 'date'):
+                doc_date = doc_date.date()
+
+            has_accounting = move.id in moves_with_posted_account
 
             if is_outgoing:
-                stock_cost += move_cost
+                if has_accounting:
+                    stock_billed_out[doc_date]  += total_val
+                else:
+                    stock_to_bill_out[doc_date] += total_val
             elif is_return:
-                stock_cost -= move_cost
-            # else: traslado interno, ignorar adición de costo
+                if has_accounting:
+                    stock_billed_in[doc_date]   += total_val
+                else:
+                    stock_to_bill_in[doc_date]  += total_val
 
-        # D. MANO DE OBRA (Timesheets + Compensations)
+        stock_billed_val = (
+            sum(convert(v, company_currency, d) for d, v in stock_billed_out.items())
+            - sum(convert(v, company_currency, d) for d, v in stock_billed_in.items())
+        )
+        stock_to_bill_val = (
+            sum(convert(v, company_currency, d) for d, v in stock_to_bill_out.items())
+            - sum(convert(v, company_currency, d) for d, v in stock_to_bill_in.items())
+        )
+        stock_cost = stock_billed_val + stock_to_bill_val
 
-        # 1. Timesheets (Líneas Analíticas)
+        # ── E. MANO DE OBRA ──────────────────────────────────────────────────
+        # Lógica contable alineada con Odoo nativo (Image 1 "Otros gastos"):
+        # Las hojas de horas NO tienen vendor bill — el costo analítico IS el registro
+        # confirmado. Todo lo que trae _get_timesheets() (ya filtrado) se considera
+        # "Contabilizado/Billed" porque la hora registrada/validada ya es el costo real.
+        # No existe concepto de "por contabilizar" para timesheets de empleado.
         timesheets = self._get_timesheets()
-        timesheet_cost_only = 0.0
-        for ts in timesheets:
-            # amount es usualmente negativo (costo). Sumamos abs().
-            timesheet_cost_only += convert(abs(ts.amount),
-                                           ts.currency_id, ts.date)
 
-        # 2. Compensations
-        # Las traemos para KPIs o potencial visualización, pero NO sumamos su costo
-        # porque ya están incluidas en las Líneas Analíticas (Timesheets) según auditoría SQL.
-        compensations = self._get_compensations()
-        compensation_cost = 0.0
-        # Bucle eliminado para evitar doble contabilidad.
+        timesheet_cost = self._convert_grouped_by_currency(
+            timesheets,
+            amount_getter=lambda ts: abs(ts.amount),
+            date_getter=lambda ts: ts.date,
+            target_currency=target_currency,
+        )
+        # Todo el costo de horas va a "billed" (Contabilizado)
+        ts_billed_cost  = timesheet_cost
+        ts_to_bill_cost = 0.0
 
-        timesheet_cost = timesheet_cost_only + compensation_cost
+        self._get_compensations()
 
-        # TOTALES
+        # ── TOTALES ──────────────────────────────────────────────────────────
         total_costs_real = total_expenses + total_purchases + stock_cost + timesheet_cost
         margin_total = invoiced - total_costs_real
 
@@ -694,771 +1053,739 @@ class ProjectProfitabilityReport(models.TransientModel):
             profit_percentage = (margin_total / expected) * 100.0
 
         return {
-            'expected_income': expected,
-            'invoiced_income': invoiced,
+            # Ingresos
+            'expected_income':   expected,
+            'invoiced_income':   invoiced,
             'to_invoice_income': to_invoice,
-            'total_expenses': total_expenses,
-            'total_purchases': total_purchases,
+            # Gastos — desglose contable
+            'total_expenses':    total_expenses,
+            'expenses_billed':   exp_billed_total,
+            'expenses_to_bill':  exp_to_bill_total,
+            # Compras — desglose contable
+            'total_purchases':   total_purchases,
+            'purchases_billed':  p_billed,
+            'purchases_to_bill': p_to_bill_pur,
+            # Compras — compatibilidad con código anterior
             'purchase_incurred': p_incurred,
             'purchase_committed': p_committed,
+            # Stock — desglose contable
             'total_stock_moves': stock_cost,
-            'timesheet_cost': timesheet_cost,
-            'margin_total': margin_total,
+            'stock_billed':      stock_billed_val,
+            'stock_to_bill':     stock_to_bill_val,
+            # Timesheets — desglose contable
+            'timesheet_cost':    timesheet_cost,
+            'timesheet_billed':  ts_billed_cost,
+            'timesheet_to_bill': ts_to_bill_cost,
+            # Totales
+            'margin_total':      margin_total,
             'profit_percentage': profit_percentage,
-            'total_costs': total_costs_real
+            'total_costs':       total_costs_real,
         }
 
-    @api.depends('project_ids', 'filter_type', 'task_ids', 'task_state_filter',
-                 'date_filter_type', 'date_from', 'date_to', 'include_archived',
-                 'ubicacion_ids')
+    @api.depends(
+        'project_ids', 'filter_type', 'task_ids', 'task_state_filter',
+        'date_filter_type', 'date_from', 'date_to', 'include_archived',
+        'ubicacion_ids',
+    )
     def _compute_profitability(self):
         for wizard in self:
-            # Helpers handle location filtering now (Strict Source of Truth)
             data = wizard._get_profitability_data(
                 wizard.project_ids, wizard.date_from, wizard.date_to)
 
-            wizard.expected_income = data['expected_income']
-            wizard.invoiced_income = data['invoiced_income']
+            wizard.expected_income   = data['expected_income']
+            wizard.invoiced_income   = data['invoiced_income']
             wizard.to_invoice_income = data['to_invoice_income']
-            wizard.total_expenses = data['total_expenses']
-            wizard.total_purchases = data['total_purchases']
+            # Gastos
+            wizard.total_expenses    = data['total_expenses']
+            wizard.expenses_billed   = data['expenses_billed']
+            wizard.expenses_to_bill  = data['expenses_to_bill']
+            # Compras
+            wizard.total_purchases   = data['total_purchases']
+            wizard.purchases_billed  = data['purchases_billed']
+            wizard.purchases_to_bill = data['purchases_to_bill']
             wizard.purchase_cost_incurred = data['purchase_incurred']
-            wizard.purchase_committed = data['purchase_committed']
+            wizard.purchase_committed     = data['purchase_committed']
+            # Stock
             wizard.total_stock_moves = data['total_stock_moves']
-            wizard.timesheet_cost = data['timesheet_cost']
-            wizard.margin_total = data['margin_total']
+            wizard.stock_billed      = data['stock_billed']
+            wizard.stock_to_bill     = data['stock_to_bill']
+            # Timesheets
+            wizard.timesheet_cost    = data['timesheet_cost']
+            wizard.timesheet_billed  = data['timesheet_billed']
+            wizard.timesheet_to_bill = data['timesheet_to_bill']
+            # Rentabilidad
+            wizard.margin_total      = data['margin_total']
             wizard.profit_percentage = data['profit_percentage']
 
-    def _check_date(self, date_value):
-        """Helper para filtrar en memoria fechas"""
-        if not date_value:
-            return False
-        if self.date_filter_type == 'none':
-            return True
-        d = date_value.date() if hasattr(date_value, 'date') else date_value
-        if self.date_from and d < self.date_from:
-            return False
-        if self.date_to and d > self.date_to:
-            return False
-        return True
+    # =========================================================================
+    # SECCIÓN: LÓGICA DE GASTOS (EXPENSES)
+    # =========================================================================
 
-    @api.depends('project_ids', 'filter_type', 'task_ids', 'task_state_filter', 'date_filter_type', 'date_from', 'date_to', 'chart_type', 'ubicacion_ids', 'include_archived')
+    def _get_expense_domain(self, all_tasks):
+        """
+        Construye el dominio para buscar gastos.
+        Soporta filtrado por Tarea, Proyecto y Distribución Analítica (Odoo 17).
+        """
+        self.ensure_one()
+
+        # 1. Tarea
+        domain_task = [('task_id', 'in', all_tasks.ids)]
+
+        # 2. Proyecto (CORRECCIÓN 1: helper centralizado)
+        domain_project = []
+        projects = self._get_filtered_projects()
+        if 'project_id' in self.env['hr.expense']._fields:
+            domain_project = [('project_id', 'in', projects.ids)]
+
+        # 3. Bloque Analítico (CORRECCIÓN 1: helper centralizado)
+        domain_analytic = self._build_analytic_domain('hr.expense', projects)
+        _logger.info('[EXP] include_analytic_account=%s | analytics ids=%s',
+                     self.include_analytic_account,
+                     projects.mapped('analytic_account_id').ids if projects else [])
+        _logger.info('[EXP] Campo analytic_distribution en hr.expense: %s',
+                     'analytic_distribution' in self.env['hr.expense']._fields)
+
+        link_parts = [p for p in [domain_task,
+                                  domain_project, domain_analytic] if p]
+        link_domain = expression.OR(link_parts) if link_parts else []
+
+        state_domain = [('sheet_id.state', 'in', ['approve', 'post', 'done'])]
+        date_domain = self._get_date_domain('date')
+
+        domain = expression.AND(
+            [link_domain, state_domain] + ([date_domain] if date_domain else []))
+
+        _logger.info('[EXP] === DOMINIO FINAL _get_expense_domain ===')
+        for i, leaf in enumerate(domain):
+            _logger.info('[EXP]   [%d] %s', i, leaf)
+        return domain
+
+    # =========================================================================
+    # SECCIÓN: COMPUTE CONTENT (orquestador limpio)
+    # =========================================================================
+
+    @api.depends(
+        'project_ids', 'filter_type', 'task_ids', 'task_state_filter',
+        'date_filter_type', 'date_from', 'date_to', 'chart_type',
+        'ubicacion_ids', 'include_archived',
+    )
     def _compute_content(self):
+        # CORRECCIÓN 3 ─────────────────────────────────────────────────────────
+        # Antes: God Function de 250+ líneas mezclando lógica de negocio,
+        # transformación de datos, generación de SVG, alertas y renderizado.
+        # Ahora: orquestador puro. Cada responsabilidad en su propio método.
+        # ────────────────────────────────────────────────────────────────────────
         for wizard in self:
             tasks = wizard._get_filtered_tasks()
             all_tasks = tasks | tasks.mapped('child_ids')
-            all_task_ids = all_tasks.ids
-            company_currency = wizard.env.company.currency_id
-            target_currency = wizard.currency_id
-
-            # Listado de Movimientos de Stock
-            # Fuente de Verdad: Helper
-            moves = wizard._get_stock_moves().sorted('date', reverse=True)
-
-            stock_moves_list = []
-            state_map = {
-                'draft': 'Borrador', 'waiting': 'Esperando',
-                'confirmed': 'En espera', 'assigned': 'Reservado',
-                'done': 'Hecho', 'cancel': 'Cancelado',
-            }
-
-            base_url = wizard.env['ir.config_parameter'].sudo(
-            ).get_param('web.base.url')
-
-            for move in moves:
-                # 1. Regla Anti-Duplicidad
-                if move.purchase_line_id or move.picking_id.purchase_id:
-                    continue
-
-                # Lógica copiada de _get_profitability_data para consistencia estricta
-                layers = move.stock_valuation_layer_ids
-                total_cost = 0.0
-
-                # Helper para conversión en bucle
-                def convert_s(amount, src, date):
-                    return wizard._convert_amount(amount, src, target_currency, date)
-
-                if layers:
-                    total_val = sum(abs(l.value) for l in layers)
-                    total_cost = convert_s(
-                        total_val, company_currency, move.date)
-                else:
-                    val_unit = move.price_unit or move.product_id.standard_price
-                    qty = move.quantity if move.state == 'done' else move.product_uom_qty
-                    total_cost = convert_s(
-                        val_unit * qty, company_currency, move.date)
-
-                # Definir Signo y Etiqueta
-                is_outgoing = move.location_id.usage == 'internal' and move.location_dest_id.usage != 'internal'
-                is_return = move.location_id.usage != 'internal' and move.location_dest_id.usage == 'internal'
-
-                # Etiqueta por defecto
-                move_label = move.reference
-
-                if is_outgoing:
-                    pass  # Costo es positivo
-                elif is_return:
-                    total_cost = -total_cost
-                else:
-                    # Interno (Int -> Int) -> Resguardo
-                    total_cost = 0.0
-                    move_label = f"{move.reference} (Resguardo / Interno)"
-
-                # Calcular precio unitario efectivo para visualización
-                qty_display = move.quantity if move.state == 'done' else move.product_uom_qty
-                unit_cost_display = abs(
-                    total_cost / qty_display) if qty_display else 0.0
-
-                move_url = f"{base_url}/web#id={move.id}&model=stock.move&view_type=form"
-
-                stock_moves_list.append({
-                    'product_name': move.product_id.display_name,
-                    'task_name': move.task_id.name or '-',  # Manejar tarea faltante
-                    # Manejar enlace directo a proyecto
-                    'project_name': move.task_id.project_id.name or move.project_id.name,
-                    'date': move.date,
-                    'quantity': qty_display,
-                    'uom': move.product_uom.name,
-                    'reference': move.reference,
-                    'picking': move.picking_id.name,
-                    'picking_url': move_url,
-                    'price_unit': unit_cost_display,
-                    'total_cost': total_cost,
-                    'state_label': state_map.get(move.state, move.state),
-                    'state_raw': move.state,
-                    'location_id': move.location_id.display_name,
-                    'location_dest_id': move.location_dest_id.display_name,
-                    'lot_name': ", ".join(move.move_line_ids.mapped('lot_id.name')) or "-"
-                })
-
-            # Compras Detalladas
-            purchases_list = []
-            # Use Source of Truth Helper
-            purchase_lines = wizard._get_purchase_order_lines().sorted(
-                'create_date', reverse=True)
-
-            purchase_state_map = {
-                'draft': 'Borrador', 'sent': 'Enviado', 'to approve': 'Por Aprobar',
-                'purchase': 'Pedido Compra', 'done': 'Bloqueado', 'cancel': 'Cancelado'
-            }
-
-            for line in purchase_lines:
-                purchases_list.append({
-                    'order_name': line.order_id.name,
-                    'order_id': line.order_id.id,
-                    'project_name': line.task_id.project_id.name or line.project_id.name,
-                    'task_name': line.task_id.name or '-',
-                    'purchase_order_model': 'purchase.order',  # For linking
-                    'date': line.date_order,
-                    'partner': line.partner_id.name,
-                    'product': line.product_id.display_name,
-                    'qty': line.product_qty,
-                    'price_unit': line.price_unit,
-                    'total': wizard._convert_amount(line.price_subtotal, line.currency_id, target_currency, line.order_id.date_order),
-                    'currency': target_currency.symbol,  # Converted currency
-                    'state': purchase_state_map.get(line.order_id.state, line.order_id.state),
-                    'state_raw': line.order_id.state,
-                })
-
-            # Gastos Detallados
-            expenses_list = []
-            exp_domain = wizard._get_expense_domain(all_tasks)
-
-            expenses = self.env['hr.expense'].sudo().search(
-                exp_domain, order='date desc')
-
-            expense_state_map = {
-                'draft': 'Borrador', 'reported': 'Enviado', 'approved': 'Aprobado',
-                'post': 'Publicado', 'done': 'Pagado', 'refused': 'Rechazado'
-            }
-
-            for exp in expenses:
-                # URL
-                exp_url = f"/web#id={exp.id}&model=hr.expense&view_type=form"
-
-                # Calculate Amount for Display
-                if 'untaxed_amount_currency' in self.env['hr.expense']._fields:
-                    amount_display = exp.untaxed_amount_currency
-                elif 'untaxed_amount' in self.env['hr.expense']._fields:
-                    amount_display = exp.untaxed_amount
-                else:
-                    amount_display = getattr(
-                        exp, 'total_amount_currency', 0.0) or exp.total_amount
-
-                expenses_list.append({
-                    'name': exp.name,
-                    'employee': exp.employee_id.name,
-                    'project_name': exp.task_id.project_id.name or exp.project_id.name if 'project_id' in exp else '-',
-                    'task_name': exp.task_id.name or '-',
-                    'date': exp.date,
-                    'product': exp.product_id.display_name,
-                    'total': wizard._convert_amount(amount_display, exp.currency_id, target_currency, exp.date),
-                    'currency': target_currency.symbol,  # Converted to report currency
-                    'state': expense_state_map.get(exp.state, exp.state),
-                    'state_raw': exp.state,
-                    'sheet_name': exp.sheet_id.name,
-                    'exp_url': exp_url
-                })
-
-            # Chart Data
-            total_cost_base = wizard.total_expenses + wizard.total_purchases + \
-                wizard.total_stock_moves + wizard.timesheet_cost or 1.0
-
-            p_stock = (wizard.total_stock_moves / total_cost_base) * 100
-            p_purchases = (wizard.total_purchases / total_cost_base) * 100
-            p_timesheets = (wizard.timesheet_cost / total_cost_base) * 100
-            p_expenses = (wizard.total_expenses / total_cost_base) * 100
-
-            c_stock = f"#dc3545 0% {p_stock:.2f}%"
-            c_purch = f"#0d6efd {p_stock:.2f}% {p_stock + p_purchases:.2f}%"
-            c_time = f"#fd7e14 {p_stock + p_purchases:.2f}% {p_stock + p_purchases + p_timesheets:.2f}%"
-            c_exp = f"#6610f2 {p_stock + p_purchases + p_timesheets:.2f}% 100%"
-
-            chart_style = f"width: 100%; height: 100%; border-radius: 50%; background: conic-gradient({c_stock}, {c_purch}, {c_time}, {c_exp});"
-
-            chart_data = {
-                'stock_pct': p_stock,
-                'purchases_pct': p_purchases,
-                'timesheets_pct': p_timesheets,
-                'expenses_pct': p_expenses,
-                'style': chart_style
-            }
-
-            # --- CÁLCULO DE GRÁFICO DE COLUMNAS (CASCADA REAL) ---
-            column_data = []
-            if wizard.chart_type == 'waterfall':
-                if not wizard.currency_id:
-                    currency = company_currency
-                else:
-                    currency = wizard.currency_id
-
-                rev = wizard.invoiced_income
-                # Costos (Negativos para pasos de cascada)
-                exp = -wizard.total_expenses
-                # Compras Simplificadas
-                pur_total = -wizard.total_purchases
-                stk = -wizard.total_stock_moves
-                tsh = -wizard.timesheet_cost
-
-                final_margin = rev + exp + pur_total + stk + tsh
-
-                # Estructura: (Etiqueta, Valor, Tipo, Color)
-                # Pasos:
-                # 1. Ingresos (Base) -> Inicia en 0, Altura = Rev
-                # 2. Gastos -> Inicia en Rev, Altura = -Exp (Baja)
-                # ...
-                # Último: Margen -> Inicia en 0, Altura = Margen (o residuo)
-
-                waterfall_steps = [
-                    {'label': 'Ingresos', 'val': rev,
-                        'color': '#198754', 'is_total': False},
-                    {'label': 'Gastos', 'val': exp,
-                        'color': '#6f42c1', 'is_total': False},
-                    {'label': 'Compras', 'val': pur_total,
-                     'color': '#0d6efd', 'is_total': False},
-                    {'label': 'Stock', 'val': stk,
-                        'color': '#dc3545', 'is_total': False},
-                    {'label': 'Mano de Obra', 'val': tsh,
-                        'color': '#fd7e14', 'is_total': False},
-                    {'label': 'Margen Final', 'val': final_margin,
-                        'color': '#20c997', 'is_total': True},
-                ]
-
-                # Calculate Accumulators for visualization positioning
-                current_y = 0.0
-                max_val = 0.0
-                min_val = 0.0
-
-                # Pre-pass to find range (to scale)
-                # We need to track the "Peak" of the waterfall to scale Y axis.
-                running = 0.0
-                peaks = [0.0]
-                for step in waterfall_steps:
-                    if step['label'] == 'Ingresos':
-                        running = step['val']
-                    elif step['is_total']:
-                        pass  # Total stands on 0 usually
-                    else:
-                        running += step['val']  # Val is negative
-                    peaks.append(running)
-                    # Individual bar height check
-                    peaks.append(abs(step['val']))
-
-                max_val = max(peaks + [rev]) * 1.1 or 1.0
-
-                current_y = 0.0
-
-                for step in waterfall_steps:
-                    val = step['val']
-
-                    if step['label'] == 'Ingresos':
-                        # Base bar
-                        y_start = 0
-                        y_end = val
-                        current_y = val
-                    elif step['is_total']:
-                        # Final bar from 0 to current_y (which should equal val)
-                        y_start = 0
-                        y_end = current_y  # Should be same as val theoretically
-                    else:
-                        # Step bar
-                        y_start = current_y
-                        y_end = current_y + val
-                        current_y = y_end
-
-                    # Determinar propiedades geométricas (porcentaje de altura)
-                    # Asumimos 0 abajo (0%) y Max arriba (100%)
-                    # Cascada funciona mejor con positivos, pero manejamos negativos visualmente.
-                    # Mapeamos [0, max_val] a [0, 100%]
-
-                    b_bottom = (min(y_start, y_end) / max_val) * 100.0
-                    b_height = (abs(val) / max_val) * 100.0
-
-                    column_data.append({
-                        'label': step['label'],
-                        'amount': val,
-                        'bottom': b_bottom,
-                        'height': b_height,
-                        'color': step['color'],
-                        'is_negative': val < 0
-                    })
-
-            # --- PREPARE DATA FOR TOP 5 AND LINE CHART ---
-            # We need 'sols' and 'comp_lines' which are not yet in local scope of _compute_content
-            # Reuse tasks logic
-            all_tasks = self.env['project.task'].browse(all_task_ids)
-            sols = all_tasks.mapped('sale_line_id')
-
-            # Timesheets (Cost from Analytic Lines)
-            ts_domain = wizard._get_project_task_domain()
-            ts_domain += wizard._get_date_domain('date')
-
-            timesheets = self.env['account.analytic.line'].search(
-                ts_domain, order='date desc')
-
-            timesheets_list = []
-
-            for al in timesheets:
-                # URL
-                ts_url = f"/web#id={al.id}&model=account.analytic.line&view_type=form"
-
-                # Cost is negative in amount. We want positive magnitude.
-                cost = -al.amount
-
-                timesheets_list.append({
-                    'employee': al.employee_id.name,
-                    'project_name': al.project_id.name,
-                    'date': al.date,
-                    'description': al.name,
-                    'task': al.task_id.name or '-',
-                    'total': cost,
-                    'currency': al.currency_id.symbol,
-                    'state_label': 'Validado',
-                    'state_raw': 'validated',
-                    'ts_url': ts_url
-                })
-
-            # --- GENERACIÓN DE DATOS PARA GRÁFICO DE LÍNEA ---
-            line_chart_svg = ""
-            if wizard.chart_type == 'line':
-                # 1. Agregar Datos por Fecha
-                date_data = defaultdict(lambda: {'income': 0.0, 'cost': 0.0})
-
-                # Ingresos (Facturas)
-                # Re-fetch líneas publicadas para asegurar acceso a fechas
-                inv_domain_line = [('move_id.state', '=', 'posted'), ('sale_line_ids', 'in', sols.ids)] + \
-                    wizard._get_date_domain('move_id.invoice_date')
-                invoiced_lines = self.env['account.move.line'].search(
-                    inv_domain_line)
-
-                for line in invoiced_lines:
-                    d = line.move_id.invoice_date
-                    if d:
-                        # Fix: Convertir a moneda reporte
-                        date_data[d]['income'] += wizard._convert_amount(
-                            line.price_subtotal, line.currency_id, target_currency, d)
-
-                # Costs
-                # Expenses
-                for exp in expenses:
-                    if exp.date:
-                        date_data[exp.date]['cost'] += wizard._convert_amount(
-                            exp.total_amount, exp.currency_id, target_currency, exp.date)
-
-                # Purchases (Separated Incurred vs Committed?)
-                # For graph, we usually show Incurred cost in the line.
-                for line in purchase_lines:
-                    d = line.date_order.date() if line.date_order else False
-                    if d:
-                        # Estimate portion incurred?
-                        # Simplification: In line chart, put the whole amount on date_order
-                        # OR only the incurred part.
-                        # Let's plot Incurred Cost on date_order.
-                        # Logic simplified: Use Total Ordered Value on Order Date
-                        cost = line.product_qty * line.price_unit
-                        date_data[d]['cost'] += wizard._convert_amount(
-                            cost, line.currency_id, target_currency, line.date_order)
-
-                # Stock
-                for move in moves:  # Fixed variable name from stock_moves to moves
-                    d = move.date.date() if move.date else False
-                    if d:
-                        idx_cost = move.price_unit or move.product_id.standard_price
-                        qty = move.quantity if move.state == 'done' else move.product_uom_qty
-                        cost_native = idx_cost * qty
-                        date_data[d]['cost'] += wizard._convert_amount(
-                            cost_native, company_currency, target_currency, move.date)
-
-                # Timesheets
-                # Timesheets (AAL)
-                for al in timesheets:
-                    d = al.date
-                    if d and wizard._check_date(d):
-                        # Cost is positive magnitude of amount (which is negative)
-                        cost = -al.amount
-                        date_data[d]['cost'] += wizard._convert_amount(
-                            cost, al.currency_id, target_currency, al.date)
-
-                # 2. Sort Dates and Fill Gaps (Optional, but better for lines)
-                if date_data:
-                    sorted_dates = sorted(date_data.keys())
-                    min_date = sorted_dates[0]
-                    max_date = sorted_dates[-1]
-
-                    # Create list of points (CUMULATIVE S-CURVE)
-                    points = []
-                    current = min_date
-
-                    cum_income = 0.0
-                    cum_cost = 0.0
-
-                    for i in range(len(sorted_dates)):
-                        current_date = sorted_dates[i]
-                        val = date_data.get(
-                            current_date, {'income': 0.0, 'cost': 0.0})
-
-                        cum_income += val['income']
-                        cum_cost += val['cost']
-
-                        margin = cum_income - cum_cost
-                        margin_pct = (margin / cum_income *
-                                      100.0) if cum_income else 0.0
-
-                        points.append({
-                            'date': current_date,
-                            'date_str': current_date.strftime('%d/%m'),
-                            'income': cum_income,
-                            'cost': cum_cost,
-                            'margin_pct': margin_pct
-                        })
-
-                    # 3. Generate SVG with Gradients and Tooltips
-                    w, h = 800, 380
-                    padding = 50
-
-                    # Scales
-                    max_val_chart = max([max(p['income'], p['cost'])
-                                        for p in points]) or 1.0
-                    max_val_chart = max_val_chart * 1.1  # Headroom
-
-                    # Margin limits (handle negative)
-                    margins = [p['margin_pct'] for p in points]
-                    min_margin = min(margins) if margins else 0
-                    max_margin = max(margins) if margins else 100
-                    if min_margin > 0:
-                        min_margin = 0
-                    if max_margin < 100:
-                        max_margin = 100
-                    margin_range = max_margin - min_margin or 1.0
-
-                    # Helpers
-                    def get_y(val):
-                        # Invert Y (SVG 0 is top)
-                        return h - padding - ((val / max_val_chart) * (h - 2 * padding))
-
-                    def get_y_pct(pct):
-                        # Secondary Axis for %
-                        # Normalize pct to 0-1 range within the chart area
-                        return h - padding - (((pct - min_margin) / margin_range) * (h - 2 * padding))
-
-                    def get_x(idx):
-                        return padding + (idx * (w - 2 * padding) / (len(points) - 1 if len(points) > 1 else 1))
-
-                    # Paths and Points
-                    path_income_cmds = []
-                    path_cost_cmds = []
-                    path_margin_cmds = []
-
-                    income_points_svg = ""
-                    cost_points_svg = ""
-                    margin_points_svg = ""
-
-                    for i, p in enumerate(points):
-                        cx = get_x(i)
-                        cy_inc = get_y(p['income'])
-                        cy_cst = get_y(p['cost'])
-                        cy_mar = get_y_pct(p['margin_pct'])
-
-                        cmd = "M" if i == 0 else "L"
-                        path_income_cmds.append(f"{cmd} {cx:.1f},{cy_inc:.1f}")
-                        path_cost_cmds.append(f"{cmd} {cx:.1f},{cy_cst:.1f}")
-                        path_margin_cmds.append(f"{cmd} {cx:.1f},{cy_mar:.1f}")
-
-                        # Markers with Tooltips using <title>
-                        income_points_svg += f"""
-                        <circle cx="{cx:.1f}" cy="{cy_inc:.1f}" r="4" fill="#28a745" stroke="white" stroke-width="2">
-                            <title>Ingresos {p['date_str']}: {format_amount(self.env, p['income'], wizard.currency_id)}</title>
-                        </circle>
-                        """
-                        cost_points_svg += f"""
-                        <circle cx="{cx:.1f}" cy="{cy_cst:.1f}" r="4" fill="#dc3545" stroke="white" stroke-width="2">
-                            <title>Costos {p['date_str']}: {format_amount(self.env, p['cost'], wizard.currency_id)}</title>
-                        </circle>
-                        """
-                        margin_points_svg += f"""
-                        <circle cx="{cx:.1f}" cy="{cy_mar:.1f}" r="4" fill="#ffc107" stroke="white" stroke-width="2">
-                            <title>Margen {p['date_str']}: {p['margin_pct']:.2f}%</title>
-                        </circle>
-                        """
-
-                    path_income_str = " ".join(path_income_cmds)
-                    path_cost_str = " ".join(path_cost_cmds)
-                    path_margin_str = " ".join(path_margin_cmds)
-
-                    # Areas (Close path to bottom)
-                    y_bottom = h - padding
-                    path_income_area = f"{path_income_str} L {get_x(len(points)-1):.1f},{y_bottom} L {get_x(0):.1f},{y_bottom} Z"
-                    path_cost_area = f"{path_cost_str} L {get_x(len(points)-1):.1f},{y_bottom} L {get_x(0):.1f},{y_bottom} Z"
-
-                    # Ticks and Grid
-                    # Y Axis (Left - Currency)
-                    y_ticks = []
-                    for i in range(5):
-                        pct = i / 4.0
-                        val = max_val_chart * pct
-                        y_pos = get_y(val)
-                        y_ticks.append(
-                            f'<line x1="{padding}" y1="{y_pos}" x2="{w-padding}" y2="{y_pos}" stroke="#e9ecef" stroke-width="1" stroke-dasharray="4"/>')
-                        y_ticks.append(
-                            f'<text x="{padding-10}" y="{y_pos+4}" text-anchor="end" font-size="10" fill="#6c757d" font-family="sans-serif">{int(val)}</text>')
-
-                    # Y Axis (Right - Percentage)
-                    for i in range(5):
-                        pct_rel = i / 4.0
-                        val_pct = min_margin + (margin_range * pct_rel)
-                        y_pos = get_y_pct(val_pct)
-                        # No grid lines for secondary axis to avoid clutter
-                        y_ticks.append(
-                            f'<text x="{w-padding+10}" y="{y_pos+4}" text-anchor="start" font-size="10" fill="#ffc107" font-family="sans-serif">{int(val_pct)}%</text>')
-
-                    # X Axis (First, Middle, Last)
-                    x_ticks = []
-                    step = 1
-                    if len(points) > 12:
-                        step = len(points) // 6
-
-                    for i in range(0, len(points), step):
-                        x_pos = get_x(i)
-                        lbl = points[i]['date_str']
-                        x_ticks.append(
-                            f'<text x="{x_pos}" y="{h-padding+20}" text-anchor="middle" font-size="10" fill="#6c757d" font-family="sans-serif">{lbl}</text>')
-
-                    line_chart_svg = Markup(f"""
-                    <svg viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg" style="width:100%; height:auto; max-height:400px; font-family:-apple-system,system-ui,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-                         <defs>
-                            <linearGradient id="gradIncome" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" style="stop-color:#28a745;stop-opacity:0.3" />
-                                <stop offset="100%" style="stop-color:#28a745;stop-opacity:0" />
-                            </linearGradient>
-                            <linearGradient id="gradCost" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" style="stop-color:#dc3545;stop-opacity:0.3" />
-                                <stop offset="100%" style="stop-color:#dc3545;stop-opacity:0" />
-                            </linearGradient>
-                            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-                                <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#000000" flood-opacity="0.1"/>
-                            </filter>
-                        </defs>
-                        
-                        <!-- Grid -->
-                        {"".join(y_ticks)}
-                        
-                        <!-- Axis Lines -->
-                        <line x1="{padding}" y1="{h-padding}" x2="{w-padding}" y2="{h-padding}" stroke="#dee2e6" stroke-width="1"/>
-                        <line x1="{padding}" y1="{padding}" x2="{padding}" y2="{h-padding}" stroke="#dee2e6" stroke-width="1"/>
-
-                        <!-- Areas -->
-                        <path d="{path_income_area}" fill="url(#gradIncome)" />
-                        <path d="{path_cost_area}" fill="url(#gradCost)" />
-                        
-                        <!-- Lines -->
-                        <path d="{path_income_str}" fill="none" stroke="#28a745" stroke-width="2.5" filter="url(#shadow)" />
-                        <path d="{path_cost_str}" fill="none" stroke="#dc3545" stroke-width="2.5" filter="url(#shadow)" />
-                        <path d="{path_margin_str}" fill="none" stroke="#ffc107" stroke-width="2.5" stroke-dasharray="5,5" filter="url(#shadow)" />
-                        
-                        <!-- Markers (Points) -->
-                        <g class="markers-group">
-                            {income_points_svg}
-                            {cost_points_svg}
-                            {margin_points_svg}
-                        </g>
-
-                        <!-- Axis Labels -->
-                        {"".join(x_ticks)}
-                        
-                        <!-- Legend overlay -->
-                        <g transform="translate({w-280}, 20)">
-                            <rect width="250" height="30" rx="5" fill="white" fill-opacity="0.8" stroke="#dee2e6" />
-                            <circle cx="20" cy="15" r="4" fill="#28a745" />
-                            <text x="30" y="19" font-size="11" fill="#333" font-weight="bold">Ingresos</text>
-                            <circle cx="90" cy="15" r="4" fill="#dc3545" />
-                            <text x="100" y="19" font-size="11" fill="#333" font-weight="bold">Costos</text>
-                            <circle cx="150" cy="15" r="4" fill="#ffc107" />
-                            <text x="160" y="19" font-size="11" fill="#333" font-weight="bold">Margen %</text>
-                        </g>
-                    </svg>
-                    """)
-                else:
-                    line_chart_svg = Markup(
-                        '<div class="text-center p-5 text-muted">Sin datos para el rango seleccionado</div>')
-
-            # --- ALERTS CALCULATION ---
-            alert_negative_profit = False
-            alert_low_margin = False
-
-            # Using wizard computes directly which are already calculated in _compute_profitability
-            # Margin & Percentage are in wizard.margin_total and wizard.profit_percentage
-
-            # 1. Beneficio Negativo (Costo > Ingreso)
-            if wizard.margin_total < 0:
-                alert_negative_profit = True
-
-            # 2. Margen Bajo (Positivo pero < 10%)
-            # Asumimos profit_percentage base 0-100
-            elif wizard.profit_percentage < 10.0 and wizard.invoiced_income > 0:
-                alert_low_margin = True
 
             values = {
                 'wizard': wizard,
-                'stock_moves_list': stock_moves_list,
-                'purchases_list': purchases_list,
-                'expenses_list': expenses_list,
-                'timesheets_list': timesheets_list,
-                'chart_data': chart_data,
-                'column_data': column_data,
-                'line_chart_svg': line_chart_svg,
-
-                'alert_negative_profit': alert_negative_profit,
-                'alert_low_margin': alert_low_margin,
+                'stock_moves_list': wizard._prepare_stock_display_data(),
+                'purchases_list': wizard._prepare_purchase_display_data(),
+                'expenses_list': wizard._prepare_expense_display_data(all_tasks),
+                'timesheets_list': wizard._prepare_timesheet_display_data(),
+                'chart_data': wizard._prepare_pie_chart_data(),
+                'column_data': wizard._prepare_waterfall_data(),
+                'line_chart_svg': wizard._generate_line_chart_svg(all_tasks),
+                **wizard._compute_alerts(),
                 'kpis': {
-
                     'purchase_committed': wizard.purchase_committed,
-                    'purchase_incurred': wizard.purchase_cost_incurred
+                    'purchase_incurred': wizard.purchase_cost_incurred,
                 },
                 'profitability': {
-                    'expected_income': wizard.expected_income,
-                    'invoiced_income': wizard.invoiced_income,
-                    'to_invoice_income': wizard.to_invoice_income,
-                    'total_expenses': wizard.total_expenses,
-                    'total_purchases': wizard.total_purchases,
-                    'total_stock_moves': wizard.total_stock_moves,
-                    'timesheet_cost': wizard.timesheet_cost,
-                    'margin_total': wizard.margin_total,
-                    'profit_percentage': wizard.profit_percentage,
-                    'total_costs': wizard.total_expenses + wizard.total_purchases + wizard.total_stock_moves + wizard.timesheet_cost,
+                    # Ingresos
+                    'expected_income':    wizard.expected_income,
+                    'invoiced_income':    wizard.invoiced_income,
+                    'to_invoice_income':  wizard.to_invoice_income,
+                    # Gastos — desglose contable
+                    'total_expenses':     wizard.total_expenses,
+                    'expenses_billed':    wizard.expenses_billed,
+                    'expenses_to_bill':   wizard.expenses_to_bill,
+                    # Compras — desglose contable
+                    'total_purchases':    wizard.total_purchases,
+                    'purchases_billed':   wizard.purchases_billed,
+                    'purchases_to_bill':  wizard.purchases_to_bill,
+                    'purchase_incurred':  wizard.purchase_cost_incurred,
+                    'purchase_committed': wizard.purchase_committed,
+                    # Stock — desglose contable
+                    'total_stock_moves':  wizard.total_stock_moves,
+                    'stock_billed':       wizard.stock_billed,
+                    'stock_to_bill':      wizard.stock_to_bill,
+                    # Timesheets — desglose contable
+                    'timesheet_cost':     wizard.timesheet_cost,
+                    'timesheet_billed':   wizard.timesheet_billed,
+                    'timesheet_to_bill':  wizard.timesheet_to_bill,
+                    # Rentabilidad
+                    'margin_total':       wizard.margin_total,
+                    'profit_percentage':  wizard.profit_percentage,
+                    'total_costs': (
+                        wizard.total_expenses + wizard.total_purchases
+                        + wizard.total_stock_moves + wizard.timesheet_cost
+                    ),
                 },
-                'format_monetary': lambda v: format_amount(self.env, float_round(v, precision_digits=2), wizard.currency_id),
-                'format_percentage': lambda v: f"{v:.2f}%"
+                'format_monetary': lambda v: format_amount(
+                    self.env, float_round(v, precision_digits=2), wizard.currency_id),
+                'format_percentage': lambda v: f"{v:.2f}%",
             }
 
             wizard.content = self.env['ir.qweb']._render(
                 'project_modificaciones.project_profitability_template', values)
 
-    def _get_project_task_domain(self, model_prefix=''):
+    # ── Sub-métodos de preparación de datos para la vista ───────────────────
+
+    def _prepare_stock_display_data(self):
+        """Prepara la lista de movimientos de stock para la vista."""
+        moves = self._get_stock_moves().sorted('date', reverse=True)
+
+        # CORRECCIÓN 4: helper único para filtrar moves vinculados a compras
+        valid_moves = self._filter_non_purchase_moves(moves)
+
+        valid_moves.mapped('location_id.usage')
+        valid_moves.mapped('location_dest_id.usage')
+        valid_moves.mapped('product_id.display_name')
+        valid_moves.mapped('task_id.name')
+        valid_moves.mapped('picking_id.name')
+
+        layer_values = self._get_stock_valuation_bulk(valid_moves)
+        company_currency = self.env.company.currency_id
+        target_currency = self.currency_id
+        base_url = self.env['ir.config_parameter'].sudo(
+        ).get_param('web.base.url')
+
+        state_map = {
+            'draft': 'Borrador', 'waiting': 'Esperando', 'confirmed': 'En espera',
+            'assigned': 'Reservado', 'done': 'Hecho', 'cancel': 'Cancelado',
+        }
+
+        result = []
+        for move in valid_moves:
+            total_val = layer_values.get(move.id)
+            if total_val is None:
+                val_unit = move.price_unit or move.product_id.standard_price
+                qty_fb = move.quantity if move.state == 'done' else move.product_uom_qty
+                total_val = val_unit * qty_fb
+
+            total_cost = self._convert_amount(
+                total_val, company_currency, target_currency, move.date)
+
+            is_outgoing = (move.location_id.usage == 'internal'
+                           and move.location_dest_id.usage != 'internal')
+            is_return = (move.location_id.usage != 'internal'
+                         and move.location_dest_id.usage == 'internal')
+
+            move_label = move.reference
+            if is_return:
+                total_cost = -total_cost
+            elif not is_outgoing:
+                total_cost = 0.0
+                move_label = f"{move.reference} (Resguardo / Interno)"
+
+            qty_display = move.quantity if move.state == 'done' else move.product_uom_qty
+            unit_cost_display = abs(
+                total_cost / qty_display) if qty_display else 0.0
+
+            result.append({
+                'product_name': move.product_id.display_name,
+                'task_name': move.task_id.name or '-',
+                'project_name': move.task_id.project_id.name or move.project_id.name,
+                'date': move.date,
+                'quantity': qty_display,
+                'uom': move.product_uom.name,
+                'reference': move_label,
+                'picking': move.picking_id.name,
+                'picking_url': f"{base_url}/web#id={move.id}&model=stock.move&view_type=form",
+                'price_unit': unit_cost_display,
+                'total_cost': total_cost,
+                'state_label': state_map.get(move.state, move.state),
+                'state_raw': move.state,
+                'location_id': move.location_id.display_name,
+                'location_dest_id': move.location_dest_id.display_name,
+                'lot_name': ", ".join(move.move_line_ids.mapped('lot_id.name')) or "-",
+            })
+        return result
+
+    def _prepare_purchase_display_data(self):
+        """Prepara la lista de líneas de compra para la vista."""
+        target_currency = self.currency_id
+        purchase_lines = self._get_purchase_order_lines().sorted('create_date', reverse=True)
+
+        state_map = {
+            'draft': 'Borrador', 'sent': 'Enviado', 'to approve': 'Por Aprobar',
+            'purchase': 'Pedido Compra', 'done': 'Bloqueado', 'cancel': 'Cancelado',
+        }
+
+        return [
+            {
+                'order_name': line.order_id.name,
+                'order_id': line.order_id.id,
+                'project_name': line.task_id.project_id.name or line.project_id.name,
+                'task_name': line.task_id.name or '-',
+                'purchase_order_model': 'purchase.order',
+                'date': line.date_order,
+                'partner': line.partner_id.name,
+                'product': line.product_id.display_name,
+                'qty': line.product_qty,
+                'price_unit': line.price_unit,
+                'total': self._convert_amount(
+                    line.price_subtotal, line.currency_id, target_currency, line.order_id.date_order),
+                'currency': target_currency.symbol,
+                'state': state_map.get(line.order_id.state, line.order_id.state),
+                'state_raw': line.order_id.state,
+            }
+            for line in purchase_lines
+        ]
+
+    def _prepare_expense_display_data(self, all_tasks):
+        """Prepara la lista de gastos para la vista."""
+        target_currency = self.currency_id
+        exp_domain = self._get_expense_domain(all_tasks)
+        expenses = self.env['hr.expense'].sudo().search(
+            exp_domain, order='date desc')
+
+        state_map = {
+            'draft': 'Borrador', 'reported': 'Enviado', 'approved': 'Aprobado',
+            'post': 'Publicado', 'done': 'Pagado', 'refused': 'Rechazado',
+        }
+
+        # CORRECCIÓN 1: helper centralizado para detección del campo de monto
+        _amount_field = self._get_expense_amount_field()
+        _has_project_field = 'project_id' in self.env['hr.expense']._fields
+
+        def get_amount(exp):
+            if _amount_field:
+                return getattr(exp, _amount_field, 0.0) or 0.0
+            return getattr(exp, 'total_amount_currency', 0.0) or exp.total_amount
+
+        return [
+            {
+                'name': exp.name,
+                'employee': exp.employee_id.name,
+                'project_name': (exp.task_id.project_id.name or exp.project_id.name)
+                if _has_project_field else '-',
+                'task_name': exp.task_id.name or '-',
+                'date': exp.date,
+                'product': exp.product_id.display_name,
+                'total': self._convert_amount(get_amount(exp), exp.currency_id, target_currency, exp.date),
+                'currency': target_currency.symbol,
+                'state': state_map.get(exp.state, exp.state),
+                'state_raw': exp.state,
+                'sheet_name': exp.sheet_id.name,
+                'exp_url': f"/web#id={exp.id}&model=hr.expense&view_type=form",
+            }
+            for exp in expenses
+        ]
+
+    def _prepare_timesheet_display_data(self):
+        """Prepara la lista de timesheets para la vista."""
+        timesheets = self._get_timesheets().sorted('date', reverse=True)
+        timesheets.mapped('employee_id.name')
+        timesheets.mapped('project_id.name')
+        timesheets.mapped('task_id.name')
+
+        return [
+            {
+                'employee': al.employee_id.name,
+                'project_name': al.project_id.name,
+                'date': al.date,
+                'description': al.name,
+                'task': al.task_id.name or '-',
+                'total': -al.amount,
+                'currency': al.currency_id.symbol,
+                'state_label': 'Validado',
+                'state_raw': 'validated',
+                'ts_url': f"/web#id={al.id}&model=account.analytic.line&view_type=form",
+            }
+            for al in timesheets
+        ]
+
+    def _prepare_invoice_display_data(self):
         """
-        Retorna un dominio que incluye:
-        1. Registros vinculados a las tareas filtradas.
-        2. Registros vinculados al proyecto pero SIN tarea (costos globales del proyecto).
+        Serializa las facturas de cliente relacionadas en dicts listos para
+        el template QWeb del PDF.
+
+        Reutiliza _get_related_invoices() para no duplicar lógica de negocio.
+        Todos los montos se convierten a la moneda del wizard para consistencia.
         """
-        tasks = self._get_filtered_tasks()
-        all_tasks = tasks | tasks.mapped('child_ids')
-
-        task_field = f'{model_prefix}task_id'
-        project_field = f'{model_prefix}project_id'
-
-        domain = [(task_field, 'in', all_tasks.ids)]
-
-        if not self.task_ids and self.project_ids:
-            return [
-                '|',
-                (task_field, 'in', all_tasks.ids),
-                '&',
-                (project_field, 'in', self.project_ids.ids),
-                (task_field, '=', False)
-            ]
-
-        return domain
-
-    def _get_expense_domain(self, all_tasks):
-        """Helper para asegurar dominio consistente para gastos"""
         self.ensure_one()
-        domain = []
+        # sorted() con key explícita: facturas sin fecha (False/None) van al final
+        invoices = self._get_related_invoices().sorted(
+            key=lambda inv: inv.invoice_date or date.min,
+            reverse=True,
+        )
+        if not invoices:
+            return []
 
-        # Lógica de Vinculación (Proyecto / Tarea / Analítica)
-        # Queremos: (Tarea) OR (Proyecto) OR (Analítica)
+        # Pre-fetch para evitar N+1 en el bucle
+        invoices.mapped('partner_id.name')
 
-        criteria = [('task_id', 'in', all_tasks.ids)]
-        projects = self.project_ids
-        # Filtrar por ubicación si aplica (aunque self.project_ids ya debería estar filtrado o ser el contexto)
-        if self.ubicacion_ids:
-            projects = projects.filtered(
-                lambda p: p.ubicacion in self.ubicacion_ids)
+        target_currency = self.currency_id
 
-        if 'project_id' in self.env['hr.expense']._fields:
-            criteria.append(('project_id', 'in', projects.ids))
+        state_label_map = {
+            'draft':  'Borrador',
+            'posted': 'Publicada',
+            'cancel': 'Cancelada',
+        }
+        payment_state_label_map = {
+            'not_paid':         'No Pagada',
+            'in_payment':       'En Pago',
+            'paid':             'Pagada',
+            'partial':          'Pago Parcial',
+            'reversed':         'Revertida',
+            'invoicing_legacy': 'Pagada',
+        }
 
-        # Lógica Analítica
-        if self.include_analytic_account:
-            analytics = projects.mapped('analytic_account_id')
-            if analytics and 'analytic_account_id' in self.env['hr.expense']._fields:
-                criteria.append(('analytic_account_id', 'in', analytics.ids))
+        result = []
+        for inv in invoices:
+            inv_currency = inv.currency_id or self.env.company.currency_id
+            inv_date = inv.invoice_date or fields.Date.context_today(self)
 
-        # Construir OR
-        link_domain = []
-        if len(criteria) > 1:
-            link_domain = ['|'] * (len(criteria) - 1)
-        link_domain += criteria
+            def _conv(amount, _ic=inv_currency, _id=inv_date):
+                return self._convert_amount(amount, _ic, target_currency, _id)
 
-        # Combinar
-        domain += link_domain
+            raw_state = inv.state
+            payment_state = getattr(inv, 'payment_state', 'not_paid') or 'not_paid'
 
-        # Filtros Adicionales (Estado y Fecha)
-        domain += [('sheet_id.state', 'in', ['approve', 'post', 'done'])]
-        domain += self._get_date_domain('date')
-        return domain
+            if raw_state == 'posted' and payment_state == 'paid':
+                display_state = 'Pagada'
+            elif raw_state == 'posted':
+                display_state = payment_state_label_map.get(payment_state, 'Publicada')
+            else:
+                display_state = state_label_map.get(raw_state, raw_state)
+
+            result.append({
+                'id':               inv.id,
+                'name':             inv.name or '/',
+                'partner':          inv.partner_id.name or '—',
+                'invoice_date':     inv.invoice_date,
+                'invoice_date_due': inv.invoice_date_due,
+                'amount_untaxed':   _conv(inv.amount_untaxed),
+                'amount_tax':       _conv(inv.amount_tax),
+                'amount_total':     _conv(inv.amount_total),
+                'amount_residual':  _conv(inv.amount_residual),
+                'state':            raw_state,
+                'payment_state':    payment_state,
+                'state_label':      display_state,
+            })
+
+        return result
+
+    def _prepare_pie_chart_data(self):
+        """
+        Calcula proporciones para el gráfico de torta de costos.
+
+        CORRECCIÓN 5: antes se usaba `total_cost_base = ... or 1.0`, que producía
+        porcentajes incorrectos en proyectos sin costos (dividía entre 1 en lugar
+        de devolver 0%). Ahora retorna 0% explícitamente cuando no hay costos.
+        """
+        total = (self.total_stock_moves + self.total_purchases
+                 + self.timesheet_cost + self.total_expenses)
+
+        if not total:
+            return {'stock_pct': 0, 'purchases_pct': 0, 'timesheets_pct': 0,
+                    'expenses_pct': 0, 'style': ''}
+
+        p_stock = (self.total_stock_moves / total) * 100
+        p_purchases = (self.total_purchases / total) * 100
+        p_timesheets = (self.timesheet_cost / total) * 100
+        p_expenses = (self.total_expenses / total) * 100
+
+        c_stock = f"#dc3545 0% {p_stock:.2f}%"
+        c_purch = f"#0d6efd {p_stock:.2f}% {p_stock + p_purchases:.2f}%"
+        c_time = f"#fd7e14 {p_stock + p_purchases:.2f}% {p_stock + p_purchases + p_timesheets:.2f}%"
+        c_exp = f"#6610f2 {p_stock + p_purchases + p_timesheets:.2f}% 100%"
+
+        return {
+            'stock_pct': p_stock,
+            'purchases_pct': p_purchases,
+            'timesheets_pct': p_timesheets,
+            'expenses_pct': p_expenses,
+            'style': (f"width:100%;height:100%;border-radius:50%;"
+                      f"background:conic-gradient({c_stock},{c_purch},{c_time},{c_exp});"),
+        }
+
+    def _prepare_waterfall_data(self):
+        """Prepara los datos para el gráfico de cascada de rentabilidad."""
+        if self.chart_type != 'waterfall':
+            return []
+
+        rev = self.invoiced_income
+        exp = -self.total_expenses
+        pur_total = -self.total_purchases
+        stk = -self.total_stock_moves
+        tsh = -self.timesheet_cost
+        final_margin = rev + exp + pur_total + stk + tsh
+
+        steps = [
+            {'label': 'Ingresos', 'val': rev, 'color': '#198754', 'is_total': False},
+            {'label': 'Gastos', 'val': exp, 'color': '#6f42c1', 'is_total': False},
+            {'label': 'Compras', 'val': pur_total,
+                'color': '#0d6efd', 'is_total': False},
+            {'label': 'Stock', 'val': stk, 'color': '#dc3545', 'is_total': False},
+            {'label': 'Mano de Obra', 'val': tsh,
+                'color': '#fd7e14', 'is_total': False},
+            {'label': 'Margen Final', 'val': final_margin,
+                'color': '#20c997', 'is_total': True},
+        ]
+
+        running = 0.0
+        peaks = [0.0]
+        for step in steps:
+            running = step['val'] if step['label'] == 'Ingresos' else running + step['val']
+            peaks.extend([running, abs(step['val'])])
+        max_val = max(peaks + [rev]) * 1.1 or 1.0
+
+        column_data = []
+        current_y = 0.0
+
+        for step in steps:
+            val = step['val']
+            if step['label'] == 'Ingresos':
+                y_start, y_end, current_y = 0, val, val
+            elif step['is_total']:
+                y_start, y_end = 0, current_y
+            else:
+                y_start = current_y
+                y_end = current_y + val
+                current_y = y_end
+
+            column_data.append({
+                'label': step['label'],
+                'amount': val,
+                'bottom': (min(y_start, y_end) / max_val) * 100.0,
+                'height': (abs(val) / max_val) * 100.0,
+                'color': step['color'],
+                'is_negative': val < 0,
+            })
+
+        return column_data
+
+    def _compute_alerts(self):
+        """Evalúa alertas de rentabilidad y retorna un dict listo para el contexto QWeb."""
+        alert_negative_profit = self.margin_total < 0
+        alert_low_margin = (
+            not alert_negative_profit
+            and self.profit_percentage < 10.0
+            and self.invoiced_income > 0
+        )
+        return {
+            'alert_negative_profit': alert_negative_profit,
+            'alert_low_margin': alert_low_margin,
+        }
+
+    def _generate_line_chart_svg(self, all_tasks):
+        """
+        Genera el SVG del gráfico de evolución temporal acumulada (S-Curve).
+        Retorna Markup vacío si chart_type no es 'line' o no hay datos.
+        """
+        if self.chart_type != 'line':
+            return Markup('')
+
+        target_currency = self.currency_id
+        company_currency = self.env.company.currency_id
+
+        sols = all_tasks.mapped('sale_line_id')
+        timesheets = self._get_timesheets()
+        expenses_domain = self._get_expense_domain(all_tasks)
+        expenses = self.env['hr.expense'].sudo().search(expenses_domain)
+        purchase_lines = self._get_purchase_order_lines()
+        moves = self._get_stock_moves().sorted('date', reverse=True)
+
+        date_data = defaultdict(lambda: {'income': 0.0, 'cost': 0.0})
+
+        # Ingresos (facturas publicadas)
+        inv_domain_line = (
+            [('move_id.state', '=', 'posted'), ('sale_line_ids', 'in', sols.ids)]
+            + self._get_date_domain('move_id.invoice_date')
+        )
+        for line in self.env['account.move.line'].search(inv_domain_line):
+            if line.move_id.invoice_date:
+                date_data[line.move_id.invoice_date]['income'] += self._convert_amount(
+                    line.price_subtotal, line.currency_id, target_currency, line.move_id.invoice_date)
+
+        # Gastos
+        for exp in expenses:
+            if exp.date:
+                date_data[exp.date]['cost'] += self._convert_amount(
+                    exp.total_amount, exp.currency_id, target_currency, exp.date)
+
+        # Compras
+        for line in purchase_lines:
+            d = line.date_order.date() if line.date_order else False
+            if d:
+                cost = line.product_qty * line.price_unit
+                date_data[d]['cost'] += self._convert_amount(
+                    cost, line.currency_id, target_currency, line.date_order)
+
+        # Stock
+        for move in moves:
+            d = move.date.date() if move.date else False
+            if d:
+                qty = move.quantity if move.state == 'done' else move.product_uom_qty
+                cost_native = (
+                    move.price_unit or move.product_id.standard_price) * qty
+                date_data[d]['cost'] += self._convert_amount(
+                    cost_native, company_currency, target_currency, move.date)
+
+        # Timesheets
+        for al in timesheets:
+            if al.date and self._check_date(al.date):
+                date_data[al.date]['cost'] += self._convert_amount(
+                    -al.amount, al.currency_id, target_currency, al.date)
+
+        if not date_data:
+            return Markup(
+                '<div class="text-center p-5 text-muted">Sin datos para el rango seleccionado</div>')
+
+        # Puntos acumulados
+        sorted_dates = sorted(date_data.keys())
+        points = []
+        cum_income = cum_cost = 0.0
+        for d in sorted_dates:
+            val = date_data[d]
+            cum_income += val['income']
+            cum_cost += val['cost']
+            margin = cum_income - cum_cost
+            points.append({
+                'date_str': d.strftime('%d/%m'),
+                'income': cum_income,
+                'cost': cum_cost,
+                'margin_pct': (margin / cum_income * 100.0) if cum_income else 0.0,
+            })
+
+        # Escalas
+        w, h, padding = 800, 380, 50
+        max_val_chart = max(max(p['income'], p['cost'])
+                            for p in points) * 1.1 or 1.0
+        margins = [p['margin_pct'] for p in points]
+        min_margin = min(min(margins), 0)
+        max_margin = max(max(margins), 100)
+        margin_range = max_margin - min_margin or 1.0
+
+        def get_x(i):
+            return padding + i * (w - 2 * padding) / (len(points) - 1 if len(points) > 1 else 1)
+
+        def get_y(val):
+            return h - padding - (val / max_val_chart) * (h - 2 * padding)
+
+        def get_y_pct(pct):
+            return h - padding - ((pct - min_margin) / margin_range) * (h - 2 * padding)
+
+        pi_cmds, pc_cmds, pm_cmds = [], [], []
+        income_pts = cost_pts = margin_pts = ''
+
+        for i, p in enumerate(points):
+            cx = get_x(i)
+            cmd = "M" if i == 0 else "L"
+            pi_cmds.append(f"{cmd} {cx:.1f},{get_y(p['income']):.1f}")
+            pc_cmds.append(f"{cmd} {cx:.1f},{get_y(p['cost']):.1f}")
+            pm_cmds.append(f"{cmd} {cx:.1f},{get_y_pct(p['margin_pct']):.1f}")
+
+            income_pts += (
+                f'<circle cx="{cx:.1f}" cy="{get_y(p["income"]):.1f}" r="4" '
+                f'fill="#28a745" stroke="white" stroke-width="2">'
+                f'<title>Ingresos {p["date_str"]}: {format_amount(self.env, p["income"], self.currency_id)}</title>'
+                f'</circle>')
+            cost_pts += (
+                f'<circle cx="{cx:.1f}" cy="{get_y(p["cost"]):.1f}" r="4" '
+                f'fill="#dc3545" stroke="white" stroke-width="2">'
+                f'<title>Costos {p["date_str"]}: {format_amount(self.env, p["cost"], self.currency_id)}</title>'
+                f'</circle>')
+            margin_pts += (
+                f'<circle cx="{cx:.1f}" cy="{get_y_pct(p["margin_pct"]):.1f}" r="4" '
+                f'fill="#ffc107" stroke="white" stroke-width="2">'
+                f'<title>Margen {p["date_str"]}: {p["margin_pct"]:.2f}%</title>'
+                f'</circle>')
+
+        pi_str = " ".join(pi_cmds)
+        pc_str = " ".join(pc_cmds)
+        pm_str = " ".join(pm_cmds)
+        y_bot = h - padding
+        pi_area = f"{pi_str} L {get_x(len(points)-1):.1f},{y_bot} L {get_x(0):.1f},{y_bot} Z"
+        pc_area = f"{pc_str} L {get_x(len(points)-1):.1f},{y_bot} L {get_x(0):.1f},{y_bot} Z"
+
+        y_ticks_svg = ''
+        for i in range(5):
+            pct = i / 4.0
+            val = max_val_chart * pct
+            yp = get_y(val)
+            y_ticks_svg += (
+                f'<line x1="{padding}" y1="{yp}" x2="{w-padding}" y2="{yp}" '
+                f'stroke="#e9ecef" stroke-width="1" stroke-dasharray="4"/>'
+                f'<text x="{padding-10}" y="{yp+4}" text-anchor="end" '
+                f'font-size="10" fill="#6c757d" font-family="sans-serif">{int(val)}</text>')
+            val_pct = min_margin + margin_range * pct
+            yp_pct = get_y_pct(val_pct)
+            y_ticks_svg += (
+                f'<text x="{w-padding+10}" y="{yp_pct+4}" text-anchor="start" '
+                f'font-size="10" fill="#ffc107" font-family="sans-serif">{int(val_pct)}%</text>')
+
+        step = max(1, len(points) // 6) if len(points) > 12 else 1
+        x_ticks_svg = ''.join(
+            f'<text x="{get_x(i):.1f}" y="{h-padding+20}" text-anchor="middle" '
+            f'font-size="10" fill="#6c757d" font-family="sans-serif">{points[i]["date_str"]}</text>'
+            for i in range(0, len(points), step)
+        )
+
+        return Markup(f"""
+        <svg viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg"
+             style="width:100%;height:auto;max-height:400px;font-family:-apple-system,system-ui,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+            <defs>
+                <linearGradient id="gradIncome" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style="stop-color:#28a745;stop-opacity:0.3"/>
+                    <stop offset="100%" style="stop-color:#28a745;stop-opacity:0"/>
+                </linearGradient>
+                <linearGradient id="gradCost" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style="stop-color:#dc3545;stop-opacity:0.3"/>
+                    <stop offset="100%" style="stop-color:#dc3545;stop-opacity:0"/>
+                </linearGradient>
+                <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#000000" flood-opacity="0.1"/>
+                </filter>
+            </defs>
+            {y_ticks_svg}
+            <line x1="{padding}" y1="{h-padding}" x2="{w-padding}" y2="{h-padding}" stroke="#dee2e6" stroke-width="1"/>
+            <line x1="{padding}" y1="{padding}" x2="{padding}" y2="{h-padding}" stroke="#dee2e6" stroke-width="1"/>
+            <path d="{pi_area}" fill="url(#gradIncome)"/>
+            <path d="{pc_area}" fill="url(#gradCost)"/>
+            <path d="{pi_str}" fill="none" stroke="#28a745" stroke-width="2.5" filter="url(#shadow)"/>
+            <path d="{pc_str}" fill="none" stroke="#dc3545" stroke-width="2.5" filter="url(#shadow)"/>
+            <path d="{pm_str}" fill="none" stroke="#ffc107" stroke-width="2.5" stroke-dasharray="5,5" filter="url(#shadow)"/>
+            <g>{income_pts}{cost_pts}{margin_pts}</g>
+            {x_ticks_svg}
+            <g transform="translate({w-280},20)">
+                <rect width="250" height="30" rx="5" fill="white" fill-opacity="0.8" stroke="#dee2e6"/>
+                <circle cx="20" cy="15" r="4" fill="#28a745"/>
+                <text x="30" y="19" font-size="11" fill="#333" font-weight="bold">Ingresos</text>
+                <circle cx="90" cy="15" r="4" fill="#dc3545"/>
+                <text x="100" y="19" font-size="11" fill="#333" font-weight="bold">Costos</text>
+                <circle cx="150" cy="15" r="4" fill="#ffc107"/>
+                <text x="160" y="19" font-size="11" fill="#333" font-weight="bold">Margen %</text>
+            </g>
+        </svg>""")
+
+    # =========================================================================
+    # SECCIÓN: COMPUTE STATS
+    # =========================================================================
 
     def _compute_stats(self):
         for wizard in self:
             tasks = wizard._get_filtered_tasks()
             all_tasks = tasks | tasks.mapped('child_ids')
 
-            # 0. Task Count
             wizard.task_count = len(tasks)
-
-            # 1. Sale Orders (Source of Truth: Helper)
             wizard.sale_order_count = len(wizard._get_sale_orders())
-
-            # 2. Purchase Orders (Source of Truth: Helper)
             wizard.purchase_count = len(wizard._get_purchase_orders())
 
-            # 3. Expenses
             exp_domain = wizard._get_expense_domain(all_tasks)
             wizard.expense_count = self.env['hr.expense'].search_count(
                 exp_domain)
 
-            # 4. Requisiciones
-            req_date_field = 'date_start' if 'date_start' in self.env[
-                'employee.purchase.requisition']._fields else 'create_date'
-
+            req_date_field = (
+                'date_start'
+                if 'date_start' in self.env['employee.purchase.requisition']._fields
+                else 'create_date'
+            )
             req_line_domain = wizard._get_project_task_domain()
             req_line_domain += [('requisition_product_id.state',
                                  'not in', ['cancelled', 'new'])]
@@ -1475,24 +1802,41 @@ class ProjectProfitabilityReport(models.TransientModel):
             wizard.requisition_count = len(
                 req_lines.mapped('requisition_product_id'))
 
-            # 5. Stock Moves (Fuente: Helper)
             wizard.stock_move_count = len(wizard._get_stock_moves())
 
-            # 6. Timesheets (Fuente: Helper)
             timesheets = wizard._get_timesheets()
             wizard.timesheet_hours = sum(timesheets.mapped('unit_amount'))
 
-            # 7. Compensations (Nómina) - Conteo de Solicitudes desde Líneas
             comp_lines = wizard._get_compensations()
-            # Petición de usuario: Contar compensation.request (cabecera), no líneas
             wizard.compensation_count = len(
                 comp_lines.mapped('compensation_id'))
 
-    def action_recalculate(self):
-        self._compute_stats()
-        self._compute_profitability()
-        self._compute_content()
-        return True
+            wizard.invoice_count = len(wizard._get_related_invoices())
+
+    # =========================================================================
+    # SECCIÓN: ACCIONES DE VENTANA
+    # =========================================================================
+
+    def _get_project_task_domain(self, model_prefix=''):
+        """
+        Retorna dominio que incluye registros vinculados a tareas filtradas
+        y registros del proyecto sin tarea (costos globales).
+        """
+        tasks = self._get_filtered_tasks()
+        all_tasks = tasks | tasks.mapped('child_ids')
+
+        task_field = f'{model_prefix}task_id'
+        project_field = f'{model_prefix}project_id'
+
+        if not self.task_ids and self.project_ids:
+            return [
+                '|',
+                (task_field, 'in', all_tasks.ids),
+                '&',
+                (project_field, 'in', self.project_ids.ids),
+                (task_field, '=', False),
+            ]
+        return [(task_field, 'in', all_tasks.ids)]
 
     def _get_action_view_base(self, name, res_model, domain):
         return {
@@ -1504,33 +1848,35 @@ class ProjectProfitabilityReport(models.TransientModel):
             'target': 'current',
         }
 
+    def action_recalculate(self):
+        self._compute_stats()
+        self._compute_profitability()
+        self._compute_content()
+        return True
+
     def action_view_tasks(self):
         self.ensure_one()
         tasks = self._get_filtered_tasks()
-        return self._get_action_view_base('Tareas Filtradas', 'project.task', [('id', 'in', tasks.ids)])
+        return self._get_action_view_base('Tareas Filtradas', 'project.task',
+                                          [('id', 'in', tasks.ids)])
 
     def action_view_sale_orders(self):
         self.ensure_one()
-        return self._get_action_view_base('Órdenes de Venta', 'sale.order', [('id', 'in', self._get_sale_orders().ids)])
+        return self._get_action_view_base('Órdenes de Venta', 'sale.order',
+                                          [('id', 'in', self._get_sale_orders().ids)])
 
     def action_view_purchase_orders(self):
         self.ensure_one()
-        return self._get_action_view_base('Órdenes de Compra', 'purchase.order', [('id', 'in', self._get_purchase_orders().ids)])
+        return self._get_action_view_base('Órdenes de Compra', 'purchase.order',
+                                          [('id', 'in', self._get_purchase_orders().ids)])
 
     def action_view_timesheets(self):
         self.ensure_one()
-
-        # Revert to account.analytic.line (Hours Source)
-        domain = self._get_project_task_domain()
-        domain += self._get_date_domain('date')
-
+        domain = self._get_project_task_domain() + self._get_date_domain('date')
         return self._get_action_view_base('Hojas de Horas', 'account.analytic.line', domain)
 
     def action_view_compensations(self):
         self.ensure_one()
-
-        # Compensaciones (Fuente Nómina)
-        # Filtro estricto de usuario: Solo 'applied'
         comp_domain = [('compensation_id.state', '=', 'applied')]
 
         if 'project_id' in self.env['compensation.line']._fields:
@@ -1540,36 +1886,32 @@ class ProjectProfitabilityReport(models.TransientModel):
             all_tasks = tasks | tasks.mapped('child_ids')
             comp_domain += [('task_id', 'in', all_tasks.ids)]
 
-        # Añadir Filtro de Fecha
-        date_field = 'create_date'
-        if 'date' in self.env['compensation.line']._fields:
-            date_field = 'date'
-
+        date_field = 'date' if 'date' in self.env['compensation.line']._fields else 'create_date'
         comp_domain += self._get_date_domain(date_field)
 
-        # Petición usuario: Ver compensation.request (header), no líneas
         lines = self.env['compensation.line'].search(comp_domain)
         requests = lines.mapped('compensation_id')
-
-        return self._get_action_view_base('Compensaciones', 'compensation.request', [('id', 'in', requests.ids)])
+        return self._get_action_view_base('Compensaciones', 'compensation.request',
+                                          [('id', 'in', requests.ids)])
 
     def action_view_expenses(self):
         self.ensure_one()
         tasks = self._get_filtered_tasks()
         all_tasks = tasks | tasks.mapped('child_ids')
-
         domain = self._get_expense_domain(all_tasks)
         return self._get_action_view_base('Gastos', 'hr.expense', domain)
 
     def action_view_requisitions(self):
         self.ensure_one()
-
         line_domain = self._get_project_task_domain()
         line_domain += [('requisition_product_id.state',
                          'not in', ['cancelled', 'new'])]
 
-        req_date_field = 'date_start' if 'date_start' in self.env[
-            'employee.purchase.requisition']._fields else 'create_date'
+        req_date_field = (
+            'date_start'
+            if 'date_start' in self.env['employee.purchase.requisition']._fields
+            else 'create_date'
+        )
 
         if self.date_filter_type != 'none':
             if self.date_from:
@@ -1581,10 +1923,201 @@ class ProjectProfitabilityReport(models.TransientModel):
 
         lines = self.env['requisition.order'].search(line_domain)
         requisition_ids = lines.mapped('requisition_product_id').ids
-
-        return self._get_action_view_base('Requisiciones', 'employee.purchase.requisition', [('id', 'in', requisition_ids)])
+        return self._get_action_view_base('Requisiciones', 'employee.purchase.requisition',
+                                          [('id', 'in', requisition_ids)])
 
     def action_view_stock_moves(self):
         self.ensure_one()
         picking_ids = self._get_stock_moves().mapped('picking_id').ids
-        return self._get_action_view_base('Movimientos de Almacén', 'stock.picking', [('id', 'in', picking_ids)])
+        return self._get_action_view_base('Movimientos de Almacén', 'stock.picking',
+                                          [('id', 'in', picking_ids)])
+
+    def action_view_invoices(self):
+        """
+        Abre la vista de lista de las facturas de cliente relacionadas al proyecto.
+        Las facturas se obtienen a través de _get_related_invoices(), que traza el
+        camino: líneas de venta filtradas → órdenes → facturas out_invoice.
+        """
+        self.ensure_one()
+        invoices = self._get_related_invoices()
+        return {
+            'name': 'Facturas de Cliente',
+            'type': 'ir.actions.act_window',
+            'res_model': 'account.move',
+            'view_mode': 'tree,form',
+            'domain': [('id', 'in', invoices.ids)],
+            'context': {'default_move_type': 'out_invoice'},
+            'target': 'current',
+        }
+
+    def action_print_report(self):
+        """
+        Genera y descarga el reporte PDF de Rentabilidad desde el botón "Imprimir"
+        del formulario del wizard.
+
+        Delega en ir.actions.report.report_action(), que invoca automáticamente
+        _get_report_values() en el AbstractModel registrado y renderiza el
+        template QWeb con wkhtmltopdf.
+        """
+        self.ensure_one()
+        return self.env.ref(
+            'project_modificaciones.action_report_project_profitability_pdf'
+        ).report_action(self)
+
+
+# =============================================================================
+# MODELO: Proveedor de datos para el reporte PDF QWeb
+# =============================================================================
+
+class ProjectProfitabilityReportPDF(models.AbstractModel):
+    """
+    Proveedor de datos para el template QWeb del PDF de Rentabilidad.
+
+    Odoo lo localiza automáticamente por convención de nombre:
+        'report.<module_name>.<report_name_sin_prefijo_modulo>'
+
+    El motor de reportes llama a _get_report_values() antes de renderizar
+    el template, inyectando el dict retornado como variables QWeb.
+    """
+    _name = 'report.project_modificaciones.report_project_profitability_pdf'
+    _description = 'Proveedor de Datos — Reporte PDF Rentabilidad'
+
+    @api.model
+    def _get_report_values(self, docids, data=None):
+        """
+        Construye el diccionario de contexto completo para el template QWeb.
+
+        Estrategia:
+          1. Carga el wizard por docids.
+          2. Reutiliza todos los _prepare_* y _get_profitability_data ya probados.
+          3. Construye los filtros legibles para el encabezado del PDF.
+          4. Expone fmt() como helper de formateo monetario.
+        """
+        docs = self.env['project.profitability.report'].browse(docids)
+
+        # Tomar el primer (y único) wizard — el PDF siempre se genera de a uno
+        wizard = docs[0] if docs else self.env['project.profitability.report']
+
+        # ── Datos de rentabilidad ────────────────────────────────────────────
+        profitability = {
+            # Ingresos
+            'expected_income':    wizard.expected_income,
+            'invoiced_income':    wizard.invoiced_income,
+            'to_invoice_income':  wizard.to_invoice_income,
+            # Gastos
+            'total_expenses':     wizard.total_expenses,
+            'expenses_billed':    wizard.expenses_billed,
+            'expenses_to_bill':   wizard.expenses_to_bill,
+            # Compras
+            'total_purchases':    wizard.total_purchases,
+            'purchases_billed':   wizard.purchases_billed,
+            'purchases_to_bill':  wizard.purchases_to_bill,
+            'purchase_incurred':  wizard.purchase_cost_incurred,
+            'purchase_committed': wizard.purchase_committed,
+            # Stock
+            'total_stock_moves':  wizard.total_stock_moves,
+            'stock_billed':       wizard.stock_billed,
+            'stock_to_bill':      wizard.stock_to_bill,
+            # Timesheets
+            'timesheet_cost':     wizard.timesheet_cost,
+            'timesheet_billed':   wizard.timesheet_billed,
+            'timesheet_to_bill':  wizard.timesheet_to_bill,
+            # Rentabilidad
+            'margin_total':       wizard.margin_total,
+            'profit_percentage':  wizard.profit_percentage,
+            'total_costs': (
+                wizard.total_expenses
+                + wizard.total_purchases
+                + wizard.total_stock_moves
+                + wizard.timesheet_cost
+            ),
+        }
+
+        # ── Contadores de documentos ─────────────────────────────────────────
+        kpi_counts = {
+            'tasks':         wizard.task_count,
+            'sale_orders':   wizard.sale_order_count,
+            'purchases':     wizard.purchase_count,
+            'expenses':      wizard.expense_count,
+            'stock_moves':   wizard.stock_move_count,
+            'invoices':      wizard.invoice_count,
+            'compensations': wizard.compensation_count,
+        }
+
+        # ── Etiquetas de filtros aplicados ───────────────────────────────────
+        filter_ubicaciones = ', '.join(
+            wizard.ubicacion_ids.mapped('name')) if wizard.ubicacion_ids else ''
+
+        filter_projects = ', '.join(
+            wizard.project_ids.mapped('name')) if wizard.project_ids else 'Todos'
+
+        period_labels = {
+            'none':       'Sin filtro de fecha',
+            'today':      'Hoy',
+            'this_month': 'Este mes',
+            'this_year':  'Este año',
+            'custom':     f"{wizard.date_from or '?'} → {wizard.date_to or '?'}",
+        }
+        filter_period = period_labels.get(wizard.date_filter_type, '—')
+
+        state_labels = {
+            'all':                  'Todas (excl. Canceladas)',
+            '01_in_progress':       'En Proceso',
+            '1_done':               'Hecho',
+            '1_canceled':           'Cancelado',
+            '04_waiting_normal':    'Esperando',
+            '03_approved':          'Aprobado',
+            '02_changes_requested': 'Cambios Solicitados',
+        }
+        filter_task_state = state_labels.get(wizard.task_state_filter, '')
+
+        # ── Alertas ──────────────────────────────────────────────────────────
+        alerts = wizard._compute_alerts()
+
+        # ── Listas de detalle ────────────────────────────────────────────────
+        tasks_obj = wizard._get_filtered_tasks()
+        all_tasks = tasks_obj | tasks_obj.mapped('child_ids')
+
+        # ── Función de formateo monetario (closure seguro) ───────────────────
+        def fmt(amount, _wizard=wizard):
+            return format_amount(
+                _wizard.env,
+                float_round(float(amount or 0.0), precision_digits=2),
+                _wizard.currency_id,
+            )
+
+        return {
+            # Iterable estándar esperado por web.external_layout
+            'doc_ids':   docids,
+            'doc_model': 'project.profitability.report',
+            'docs':      docs,
+
+            # Metadatos del reporte
+            'report_date':  fields.Date.context_today(wizard),
+            'company_name': wizard.env.company.name,
+            'currency_name': wizard.currency_id.name,
+
+            # Filtros para encabezado
+            'filter_ubicaciones': filter_ubicaciones,
+            'filter_projects':    filter_projects,
+            'filter_period':      filter_period,
+            'filter_task_state':  filter_task_state,
+
+            # Datos financieros
+            'profitability':   profitability,
+            'kpi_counts':      kpi_counts,
+            'timesheet_hours': wizard.timesheet_hours,
+
+            # Alertas
+            'alert_negative_profit': alerts.get('alert_negative_profit', False),
+            'alert_low_margin':      alerts.get('alert_low_margin', False),
+
+            # Listas de detalle para tablas del PDF
+            'purchases_list':   wizard._prepare_purchase_display_data(),
+            'expenses_list':    wizard._prepare_expense_display_data(all_tasks),
+            'stock_moves_list': wizard._prepare_stock_display_data(),
+            'invoices_list':    wizard._prepare_invoice_display_data(),
+
+            # Helper de formateo accesible desde el template
+            'fmt': fmt,
+        }
