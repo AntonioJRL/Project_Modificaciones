@@ -985,6 +985,19 @@ class ProjectProfitabilityReport(models.TransientModel):
         elif expected:
             profit_percentage = (margin_total / expected) * 100.0
 
+        # ── MÁRGENES POR COLUMNA CONTABLE ─────────────────────────────────────
+        # Margen Contabilizado: ingresos con asiento posted − costos con asiento posted
+        total_billed_costs = (exp_billed_total + p_billed
+                              + ts_billed_cost + stock_billed_val)
+        margin_billed = invoiced - total_billed_costs
+        margin_billed_pct = (margin_billed / invoiced * 100.0) if invoiced else 0.0
+
+        # Margen Por Contabilizar: ingresos pendientes − costos pendientes de asiento
+        total_to_bill_costs = (exp_to_bill_total + p_to_bill_pur
+                               + ts_to_bill_cost + stock_to_bill_val)
+        margin_to_bill = to_invoice - total_to_bill_costs
+        margin_to_bill_pct = (margin_to_bill / to_invoice * 100.0) if to_invoice else 0.0
+
         return {
             # Ingresos
             'expected_income':   expected,
@@ -1012,6 +1025,11 @@ class ProjectProfitabilityReport(models.TransientModel):
             'margin_total':      margin_total,
             'profit_percentage': profit_percentage,
             'total_costs':       total_costs_real,
+            # Márgenes por columna contable
+            'margin_billed':      margin_billed,
+            'margin_billed_pct':  margin_billed_pct,
+            'margin_to_bill':     margin_to_bill,
+            'margin_to_bill_pct': margin_to_bill_pct,
         }
 
     # FIX 1 — @api.depends agregado para que Odoo recalcule los KPIs
@@ -1148,6 +1166,33 @@ class ProjectProfitabilityReport(models.TransientModel):
                     'total_costs': (
                         wizard.total_expenses + wizard.total_purchases
                         + wizard.total_stock_moves + wizard.timesheet_cost
+                    ),
+                    # Márgenes por columna contable — calculados inline desde campos del wizard
+                    # Contabilizado: ingresos con asiento posted − costos con asiento posted
+                    'margin_billed': (
+                        wizard.invoiced_income
+                        - wizard.expenses_billed - wizard.purchases_billed
+                        - wizard.timesheet_billed - wizard.stock_billed
+                    ),
+                    'margin_billed_pct': (
+                        ((wizard.invoiced_income
+                          - wizard.expenses_billed - wizard.purchases_billed
+                          - wizard.timesheet_billed - wizard.stock_billed)
+                         / wizard.invoiced_income * 100.0)
+                        if wizard.invoiced_income else 0.0
+                    ),
+                    # Por Contabilizar: ingresos pendientes − costos pendientes de asiento
+                    'margin_to_bill': (
+                        wizard.to_invoice_income
+                        - wizard.expenses_to_bill - wizard.purchases_to_bill
+                        - wizard.timesheet_to_bill - wizard.stock_to_bill
+                    ),
+                    'margin_to_bill_pct': (
+                        ((wizard.to_invoice_income
+                          - wizard.expenses_to_bill - wizard.purchases_to_bill
+                          - wizard.timesheet_to_bill - wizard.stock_to_bill)
+                         / wizard.to_invoice_income * 100.0)
+                        if wizard.to_invoice_income else 0.0
                     ),
                 },
                 'format_monetary': lambda v: format_amount(
@@ -1913,6 +1958,31 @@ class ProjectProfitabilityReportPDF(models.AbstractModel):
                 + wizard.total_purchases
                 + wizard.total_stock_moves
                 + wizard.timesheet_cost
+            ),
+            # Márgenes por columna contable
+            'margin_billed': (
+                wizard.invoiced_income
+                - wizard.expenses_billed - wizard.purchases_billed
+                - wizard.timesheet_billed - wizard.stock_billed
+            ),
+            'margin_billed_pct': (
+                ((wizard.invoiced_income
+                  - wizard.expenses_billed - wizard.purchases_billed
+                  - wizard.timesheet_billed - wizard.stock_billed)
+                 / wizard.invoiced_income * 100.0)
+                if wizard.invoiced_income else 0.0
+            ),
+            'margin_to_bill': (
+                wizard.to_invoice_income
+                - wizard.expenses_to_bill - wizard.purchases_to_bill
+                - wizard.timesheet_to_bill - wizard.stock_to_bill
+            ),
+            'margin_to_bill_pct': (
+                ((wizard.to_invoice_income
+                  - wizard.expenses_to_bill - wizard.purchases_to_bill
+                  - wizard.timesheet_to_bill - wizard.stock_to_bill)
+                 / wizard.to_invoice_income * 100.0)
+                if wizard.to_invoice_income else 0.0
             ),
         }
 

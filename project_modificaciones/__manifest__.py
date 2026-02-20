@@ -2,7 +2,7 @@
     'name': 'Modificaciones de Project',
     'version': '17.1.3',
     'author': 'Mauricio, Antonio J.',
-    'depends': ['base', 'sale', 'hr', 'project', 'sale_project', 'purchase', 'hr_expense', 'sale_purchase', 'hr_timesheet', 'employee_purchase_requisition', 'stock', 'web'],
+    'depends': ['base', 'sale', 'hr', 'project', 'sale_project', 'purchase', 'hr_expense', 'sale_purchase', 'hr_timesheet', 'employee_purchase_requisition', 'stock','web'],
     'license': 'AGPL-3',
     'data': [
         # 1. Security (Groups first, then Access Rights, then Rules)
@@ -64,7 +64,7 @@
         ],
     },
 
-
+    
     'category': 'Technical',
     'license': 'AGPL-3',
     'installable': True,

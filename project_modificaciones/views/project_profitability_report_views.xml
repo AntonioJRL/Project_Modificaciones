@@ -895,30 +895,48 @@
                                     <t t-out="format_monetary(-profitability['total_stock_moves'])" />
                                 </td>
                             </tr>
-                            <!-- Margen Total -->
+                            <!-- Margen Total — se muestra en las 3 columnas numéricas -->
                             <tr class="bg-light">
                                 <td class="ps-4 fw-bold">Margen Total</td>
                                 <td />
-                                <td />
-                                <td />
+                                <!-- Margen sobre lo ya Contabilizado -->
+                                <td t-attf-class="text-center fw-bold #{'text-success' if profitability['margin_billed'] &gt;= 0 else 'text-danger'}">
+                                    <t t-out="format_monetary(profitability['margin_billed'])" />
+                                </td>
+                                <!-- Margen sobre lo Por Contabilizar -->
+                                <td t-attf-class="text-center fw-bold #{'text-success' if profitability['margin_to_bill'] &gt;= 0 else 'text-danger'}">
+                                    <t t-out="format_monetary(profitability['margin_to_bill'])" />
+                                </td>
+                                <!-- Margen Total acumulado -->
                                 <td t-attf-class="text-center fw-bold fs-6 p-3 #{'text-success' if profitability['margin_total'] &gt;= 0 else 'text-danger'}">
-                                    <div class="d-flex flex-column align-items-center">
-                                        <t t-out="format_monetary(profitability['margin_total'])" />
-                                    </div>
+                                    <t t-out="format_monetary(profitability['margin_total'])" />
                                 </td>
                             </tr>
                         </tbody>
+                        <!-- tfoot: porcentaje de margen por cada columna numérica -->
                         <tfoot>
                             <tr>
                                 <td />
                                 <td />
-                                <td />
-                                <td />
+                                <!-- % Margen Contabilizado -->
                                 <td class="text-center pb-3">
-                                    <div class="d-flex flex-column align-items-center">
-                                        <div t-attf-class="badge-percent #{'bg-soft-success' if profitability['profit_percentage'] &gt;= 0 else 'bg-soft-danger'}">
-                                            <t t-out="format_percentage(profitability['profit_percentage'])" />
-                                        </div>
+                                    <div t-attf-class="badge-percent #{'bg-soft-success' if profitability['margin_billed_pct'] &gt;= 0 else 'bg-soft-danger'}"
+                                         title="% de margen sobre ingresos facturados (contabilizados)">
+                                        <t t-out="format_percentage(profitability['margin_billed_pct'])" />
+                                    </div>
+                                </td>
+                                <!-- % Margen Por Contabilizar -->
+                                <td class="text-center pb-3">
+                                    <div t-attf-class="badge-percent #{'bg-soft-success' if profitability['margin_to_bill_pct'] &gt;= 0 else 'bg-soft-danger'}"
+                                         title="% de margen sobre ingresos por facturar">
+                                        <t t-out="format_percentage(profitability['margin_to_bill_pct'])" />
+                                    </div>
+                                </td>
+                                <!-- % Margen Total (rentabilidad global) -->
+                                <td class="text-center pb-3">
+                                    <div t-attf-class="badge-percent #{'bg-soft-success' if profitability['profit_percentage'] &gt;= 0 else 'bg-soft-danger'}"
+                                         title="% de rentabilidad global del proyecto">
+                                        <t t-out="format_percentage(profitability['profit_percentage'])" />
                                     </div>
                                 </td>
                             </tr>
