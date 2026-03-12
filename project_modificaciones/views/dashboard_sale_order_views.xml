@@ -49,6 +49,17 @@
                         class="oe_stat_button" icon="fa-cubes">
                         <field name="stock_move_count" widget="statinfo" string="Mov. Almacén" />
                     </button>
+                    <button name="action_view_timesheets"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-clock-o">
+                        <div class="o_field_widget o_stat_info">
+                            <span class="o_stat_value">
+                                <field name="time_sheet_count" />
+                            </span>
+                            <span class="o_stat_text">Hojas de Horas</span>
+                        </div>
+                    </button>
                 </div>
 
                 <!-- Contenido del dashboard -->
@@ -196,7 +207,7 @@
                                     <h3 class="kpi-value text-danger">
                                         <t t-esc="format_monetary(financials['costs'])" />
                                     </h3>
-                                    <p class="small text-muted">Compras + Gastos</p>
+                                    <p class="small text-muted">Compras + Gastos + M. Obra</p>
                                 </div>
                             </div>
                         </div>
@@ -278,6 +289,27 @@
                                 <span>Total:</span>
                                 <span class="fw-bold"
                                     t-esc="format_monetary(metrics['expenses_total'])" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hojas de Horas -->
+                <div class="col-md-4">
+                    <div class="card animacion">
+                        <div class="card-header">
+                            <h6 class="card-title">
+                                <i class="fa fa-clock-o me-2"></i> Hojas de Horas </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>Registros:</span>
+                                <span class="badge badge-horas" t-esc="metrics['time_sheet_count']" />
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>Total:</span>
+                                <span class="fw-bold"
+                                    t-esc="format_monetary(metrics['time_sheet_total'])" />
                             </div>
                         </div>
                     </div>
@@ -549,6 +581,90 @@
                 </div>
             </t>
 
+            <!-- Desglose Hojas de Horas -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">
+                                <i class="fa fa-clock-o me-2" /> Hojas de Horas </span>
+                        </div>
+                        <div class="card-body p-0">
+                            <t t-if="timesheets_list">
+                                <div class="scroll-box">
+                                    <table class="table table-striped table-bordered mb-0">
+                                        <thead
+                                            style="position: sticky; top: 0; z-index: 1; background-color: #f8f9fa;">
+                                            <tr>
+                                                <th style="width: 100px;">Fecha</th>
+                                                <th style="width: 150px;">Empleado</th>
+                                                <th class="tamaño-producto">Tarea</th>
+                                                <th class="tamaño-descripcion">Descripción</th>
+                                                <th class="text-end" style="width: 120px;">Horas</th>
+                                                <th class="text-end" style="width: 100px;">Costo</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <t t-foreach="timesheets_list" t-as="ts">
+                                                <tr>
+                                                    <td class="fechas">
+                                                        <t t-esc="ts['date']" />
+                                                    </td>
+                                                    <td style="width: 150px; max-width: 150px;">
+                                                        <span class="span-bg"
+                                                            style="white-space: normal; 
+                                  word-break: break-word; 
+                                  max-width: 140px; 
+                                  display: inline-block;">
+                                                            <t t-esc="ts['employee']" />
+                                                        </span>
+                                                    </td>
+                                                    <td class="tamaño-producto valores">
+                                                        <t t-esc="ts['task']" />
+                                                    </td>
+                                                    <td class="tamaño-descripcion valores">
+                                                        <t t-esc="ts['description']" />
+                                                    </td>
+                                                    <td class="text-end">
+                                                        <span class="badge badge-horas">
+                                                            <t t-esc="format_unit(ts['hours'])" />
+                                                            hrs </span>
+                                                    </td>
+                                                    <td class="text-end valores">
+                                                        <t t-esc="format_monetary(ts['cost'])" />
+                                                    </td>
+                                                </tr>
+                                            </t>
+                                        </tbody>
+                                        <tfoot
+                                            style="position: sticky; bottom: 0; background-color: #f8f9fa;">
+                                            <tr>
+                                                <td colspan="4" class="text-end fw-bold">Total</td>
+                                                <td class="text-end">
+                                                    <span class="badge badge-horas fw-bold">
+                                                        <t
+                                                            t-esc="format_unit(sum(ts['hours'] for ts in timesheets_list))" />
+                                                        hrs </span>
+                                                </td>
+                                                <td class="text-end fw-bold valores">
+                                                    <t
+                                                        t-esc="format_monetary(metrics['time_sheet_total'])" />
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </t>
+                            <t t-else="">
+                                <div class="p-4 text-center">
+                                    <i class="fa fa-clock-o fa-2x mb-2" style="color: #ccc;" />
+                                    <p class="text-muted mb-0">No hay hojas de horas registradas.</p>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <!-- Resumen Financiero -->
             <div class="row mt-4">
                 <div class="col-12">
@@ -569,7 +685,7 @@
                                     <tr>
                                         <td>Ingresos Totales</td>
                                         <td class="text-end"
-                                            t-esc="format_monetary(metrics['avances_value_delivered'])" />
+                                            t-esc="format_monetary(financials['entregado'])" />
                                         <td class="text-end">100%</td>
                                     </tr>
                                     <tr>
@@ -577,14 +693,11 @@
                                         <td class="text-end text-danger"
                                             t-esc="format_monetary(metrics['purchase_total'])" />
                                         <td class="text-end text-danger">
-                                            <t t-if="metrics['avances_value_delivered']">
+                                            <t t-if="financials['entregado']">
                                                 <t
-                                                    t-esc="format_percentage((metrics['purchase_total'] / metrics['avances_value_delivered'] * 100))" />
+                                                    t-esc="format_percentage((metrics['purchase_total'] / financials['entregado']) * 100)" />
                                             </t>
-                                            <t t-else="0">
-                                                0.0%
-                                            </t>
-
+                                            <t t-else="">0.00%</t>
                                         </td>
                                     </tr>
                                     <tr>
@@ -592,15 +705,24 @@
                                         <td class="text-end text-danger"
                                             t-esc="format_monetary(metrics['expenses_total'])" />
                                         <td class="text-end text-danger">
-                                            <t t-if="metrics['avances_value_delivered']">
+                                            <t t-if="financials['entregado']">
                                                 <t
-                                                    t-esc="format_percentage((metrics['expenses_total'] / metrics['avances_value_delivered'] * 100))" />
+                                                    t-esc="format_percentage((metrics['expenses_total'] / financials['entregado']) * 100)" />
                                             </t>
-                                            <t t-else="0">
-                                                0.0%
-                                            </t>
+                                            <t t-else="">0.00%</t>
                                         </td>
-
+                                    </tr>
+                                    <tr>
+                                        <td>Costos (Hojas de Horas)</td>
+                                        <td class="text-end text-danger"
+                                            t-esc="format_monetary(metrics['time_sheet_total'])" />
+                                        <td class="text-end text-danger">
+                                            <t t-if="financials['entregado']">
+                                                <t
+                                                    t-esc="format_percentage((metrics['time_sheet_total'] / financials['entregado']) * 100)" />
+                                            </t>
+                                            <t t-else="">0.00%</t>
+                                        </td>
                                     </tr>
                                     <tr class="fw-bold">
                                         <td>Margen Neto</td>

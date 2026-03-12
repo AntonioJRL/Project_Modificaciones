@@ -64,11 +64,44 @@
             <!--###################################################################################-->
 
             <xpath expr="//group" position="after">
+                <separator string="Datos Generales" name="separador_general" />
+                <group name="datos_general">
+                    <group>
+                        <field name="centro_trabajo"
+                            readonly="approval_state in ['to_approve', 'approved']"
+                            help="Selecciona la ubicación física principal donde se ejecutará el servicio." />
+
+                        <field name="supervisor_interno"
+                            widget="many2one_avatar_user"
+                            readonly="approval_state in ['to_approve', 'approved']" />
+                    </group>
+                    <group>
+                        <field name="planta_trabajo"
+                            help="Indica la planta específica dentro del Centro de Trabajo donde se realizará la actividad."
+                            readonly="approval_state in ['to_approve', 'approved']"
+                        />
+                        <field name="supervisor_cliente" widget="many2one_avatar_user"
+                            help="Persona de contacto (cliente) que supervisará y validará los trabajos en sitio."
+                            readonly="approval_state in ['to_approve', 'approved']"
+                        />
+                        <field name="is_control_obra" widget="boolean_toggle" readonly="1" />
+                    </group>
+                </group>
+
+                <separator string="Progreso Ponderado" name="progreso_ponderado" />
+                <group name="progreso_ponderado_grupo">
+                    <group>
+                        <field name="use_weighted_progress" widget="boolean_toggle" />
+                        <field name="producto_relacionado" />
+                    </group>
+                    <group>
+                        <field name="subtask_weight" invisible="not parent_id" />
+                    </group>
+                </group>
+
                 <separator string="Avance" name="separador_avance" />
                 <group name="Avance">
                     <group>
-                        <field name="use_weighted_progress" widget="boolean_toggle" />
-                        <field name="subtask_weight" invisible="not parent_id" />
                         <field name="progress" widget="progressbar" />
                         <field name="quant_progress" />
                         <field name="is_complete" string="¿Tarea terminada?" />
@@ -88,6 +121,8 @@
                     <field name="last_update_date" />
                 </group>
             </xpath>
+            <!--Parte
+            del Progreso Ponderado Vista de Subtareas-->
             <xpath expr="//field[@name='child_ids']/tree/field[@name='name']" position="after">
                 <field name="subtask_weight" sum="Total Peso" />
                 <field name="quant_progress" sum="Total Avance" string="U. Entregadas" />
@@ -391,31 +426,31 @@
                 </page>
             </xpath>
 
-            <xpath expr="//separator[@name='separador_avance']" position="before">
-                <separator string="Datos Generales" name="separador_general" />
-                <group name="datos_general">
-                    <group>
-                        <field name="centro_trabajo"
-                            readonly="approval_state in ['to_approve', 'approved']"
-                            help="Selecciona la ubicación física principal donde se ejecutará el servicio." />
-
-                        <field name="supervisor_interno"
-                            widget="many2one_avatar_user"
-                            readonly="approval_state in ['to_approve', 'approved']" />
-                    </group>
-                    <group>
-                        <field name="planta_trabajo"
-                            help="Indica la planta específica dentro del Centro de Trabajo donde se realizará la actividad."
-                            readonly="approval_state in ['to_approve', 'approved']"
-                        />
-                        <field name="supervisor_cliente" widget="many2one_avatar_user"
-                            help="Persona de contacto (cliente) que supervisará y validará los trabajos en sitio."
-                            readonly="approval_state in ['to_approve', 'approved']"
-                        />
-                        <field name="is_control_obra" widget="boolean_toggle" readonly="1" />
-                        <field name="producto_relacionado" invisible="1" />
-                    </group>
-                </group>
+            <xpath expr="//page[@name='updates']" position="after">
+                <page name="child_updates" string="Avances de Subtareas"
+                    invisible="not child_ids">
+                    <field name="child_sub_update_ids" readonly="True">
+                        <tree default_order="date desc, id desc"
+                            decoration-success="avances_state == 'assigned'"
+                            decoration-info="avances_state == 'confirmed'"
+                            decoration-warning="avances_state == 'draft'">
+                            <field name="task_id" string="Subtarea" optional="show" />
+                            <field name="name" string="ID Avance" optional="show" />
+                            <field name="date" string="Fecha" optional="show" />
+                            <field name="responsible_id" string="Supv. Interno" widget="many2one_avatar_user" optional="show" />
+                            <field name="producto" string="Producto" optional="show" />
+                            <field name="ct" string="CT" optional="show" />
+                            <field name="avances_state" widget="badge"
+                                decoration-success="avances_state == 'assigned'"
+                                decoration-info="avances_state == 'confirmed'"
+                                decoration-warning="avances_state == 'draft'"
+                                string="Estado" optional="show" />
+                            <field name="unit_progress" string="Unidades Avance" optional="show" />
+                            <field name="virtual_quant_progress" string="U. Entregadas" optional="show" />
+                            <field name="total_progress_percentage" string="Progreso Total" widget="percentage" optional="show" />
+                        </tree>
+                    </field>
+                </page>
             </xpath>
         </field>
     </record>
@@ -490,12 +525,12 @@
             </p>
         </field>
     </record>
-    
+
     <!-- Archivo: c:\Users\Erick\Downloads\rev\project_modificaciones\views\project_task_views.xml -->
     <record id="view_project_task_form_inherit_sale_line" model="ir.ui.view">
         <field name="name">project.task.form.inherit.sale.line</field>
         <field name="model">project.task</field>
-        <field name="inherit_id" ref="project.view_task_form2"/>
+        <field name="inherit_id" ref="project.view_task_form2" />
         <field name="arch" type="xml">
             <!-- Insertamos el campo justo después del campo “Nombre” -->
             <xpath expr="//field[@name='name']" position="after">
@@ -504,15 +539,15 @@
                     domain="[('order_id', '=', sale_order_id), ('is_service', '=', True)]"
                     options="{'no_create': True}"
                     help="Selecciona la línea de la orden de venta que corresponde a esta tarea."
-                    context="{'default_order_id': sale_order_id}"/>
+                    context="{'default_order_id': sale_order_id}" />
             </xpath>
             <!-- Botón opcional para abrir el wizard de enlace -->
             <xpath expr="//header" position="inside">
                 <button name="action_link_sale_line"
-                        type="object"
-                        string="Vincular línea"
-                        class="oe_highlight"
-                        invisible="sale_line_id != False"/>
+                    type="object"
+                    string="Vincular línea"
+                    class="oe_highlight"
+                    invisible="sale_line_id != False" />
             </xpath>
         </field>
     </record>

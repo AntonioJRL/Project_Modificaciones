@@ -383,13 +383,6 @@ class Task(models.Model):
         tracking=True,
     )
 
-    producto_relacionado = fields.Many2one(
-        'product.product',
-        string="Producto Relacionado A la Tarea",
-        ondelete='set null',
-        help="Producto asociado a esta tarea."
-    )
-
     # ==============================================================================================
     #                               LOGICA DE SUBTAREAS PONDERADAS
     # ==============================================================================================
@@ -406,7 +399,7 @@ class Task(models.Model):
         default=False,
     )
     subtask_weight = fields.Float(
-        string="Peso en tarea padre (%)",
+        string="(%)",
         help="Porcentaje de impacto que tiene esta subtarea sobre el progreso de la tarea padre. (0-100)",
         default=0.0,
     )
@@ -436,6 +429,40 @@ class Task(models.Model):
     is_complete = fields.Boolean(
         string="Complete", compute="_is_complete", default=False, store=False
     )
+
+    producto_relacionado = fields.Many2one(
+        'product.product',
+        string="Producto Relacionado A la Tarea",
+        ondelete='set null',
+        help="Producto asociado a esta tarea."
+    )
+
+    # ==============================================================================================
+    #                   AVANCES DE SUBTAREAS (visibles desde la tarea padre)
+    # ==============================================================================================
+    child_sub_update_ids = fields.Many2many(
+        comodel_name='project.sub.update',
+        compute='_compute_child_sub_update_ids',
+        string='Avances de Subtareas',
+        store=False,
+        help='Todos los avances registrados en las subtareas directas de esta tarea.'
+    )
+
+    @api.depends('child_ids', 'child_ids.sub_update_ids')
+    def _compute_child_sub_update_ids(self):
+        for task in self:
+            if not task.id or isinstance(task.id, models.NewId):
+                task.child_sub_update_ids = self.env['project.sub.update']
+                continue
+            # Recolectar todos los avances de las subtareas directas
+            child_task_ids = task.child_ids.ids
+            if child_task_ids:
+                avances = self.env['project.sub.update'].search([
+                    ('task_id', 'in', child_task_ids)
+                ], order='date desc, id desc')
+                task.child_sub_update_ids = avances
+            else:
+                task.child_sub_update_ids = self.env['project.sub.update']
 
     # --- MÉTODOS DE CÁLCULO Y LÓGICA ---
     @api.depends(
@@ -521,18 +548,6 @@ class Task(models.Model):
                                                     100.0) * child.subtask_weight
 
                 # 2. Contribución Directa
-                # We need to re-fetch or pass the map. For cleaner code, we fetch here again or rely on optimization
-                # elsewhere. But since _progress depends on sub_update_ids too, we can optimize.
-                # Note: to avoid redundant optimizing in a loop, valid strategy is hard because _progress is per-record
-                # but called in batch.
-                # Let's optimize the direct search here too.
-
-                # Fetch only for this specific task if not already in context/cache?
-                # Actually, `sum(search().mapped)` is bad.
-                # We can use read_group for the single task or better yet, trust _units logic?
-                # _units sets quant_progress.
-                # However, this method calculates percentage logic separately.
-
                 direct_progress_units = sum(
                     u.sub_update_ids.mapped("unit_progress")
                 )
@@ -1660,8 +1675,14 @@ class Task(models.Model):
                 # El remanente lo gestiona la tarea padre directamente.
                 if total_weight > 100.1:
                     raise ValidationError(_(
-                        "La suma de los pesos de las subtareas no puede exceder el 100%%. "
+                        "La suma de los porcentajes de las subtareas no puede ser mayor al 100%%. "
                         "Suma actual: %s%% en la tarea %s"
+                    ) % (total_weight, task.name))
+
+                if total_weight < 100.0:
+                    raise ValidationError(_(
+                        "La suma de los porcentajes de las subtareas no puede ser menor al 100%%."
+                        "Suma actua: %s%% en la tarea %s."
                     ) % (total_weight, task.name))
 
     # Servicio pediente relacionado con la tarea

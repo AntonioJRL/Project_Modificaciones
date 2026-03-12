@@ -15,8 +15,7 @@
                 <attribute name="invisible">not partner_id</attribute>
             </xpath>
 
-            <xpath expr="//sheet//div" position="inside">
-
+            <xpath expr="//div[@name='button_box']" position="inside">
                 <!-- Nuevo Smart Button que consolida Venta Directa + Ventas de Tareas -->
                 <field name="partner_id" invisible="1" />
                 <button class="oe_stat_button" type="object"
@@ -33,7 +32,7 @@
                 </button>
                 <button class="oe_stat_button" type="object"
                     name="action_open_profitability_dashboard"
-                    icon="fa-pie-chart" string="Dashboard">
+                    icon="fa-tachometer" string="Dashboard">
                 </button>
             </xpath>
             <xpath expr="//notebook" position="inside">

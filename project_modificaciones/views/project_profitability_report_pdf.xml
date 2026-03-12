@@ -5,7 +5,7 @@
          ACCIÓN DE REPORTE PDF
          ═══════════════════════════════════════════════════════════════════════ -->
     <record id="action_report_project_profitability_pdf"
-            model="ir.actions.report">
+        model="ir.actions.report">
         <field name="name">Reporte de Rentabilidad PDF</field>
         <field name="model">project.profitability.report</field>
         <field name="report_type">qweb-pdf</field>
@@ -16,10 +16,10 @@
             'Rentabilidad - ' + (object.name or 'Reporte')
         </field>
         <field name="binding_model_id"
-               ref="model_project_profitability_report"/>
+            ref="model_project_profitability_report" />
         <field name="binding_type">report</field>
         <field name="paperformat_id"
-               ref="base.paperformat_euro"/>
+            ref="base.paperformat_euro" />
     </record>
 
 
@@ -40,371 +40,371 @@
                         * { box-sizing: border-box; margin: 0; padding: 0; }
 
                         body, .page {
-                            font-family: 'DejaVu Sans', Arial, sans-serif;
-                            font-size: 9pt;
-                            color: #263238;
-                            background: #ffffff;
-                            line-height: 1.45;
+                        font-family: 'DejaVu Sans', Arial, sans-serif;
+                        font-size: 9pt;
+                        color: #263238;
+                        background: #ffffff;
+                        line-height: 1.45;
                         }
 
                         /* ── Paleta de variables (valores literales para wkhtmltopdf) ── */
-                        /* cobalt:   #1a237e  /  cobalt-light: #e8eaf6                  */
-                        /* positive: #2e7d32  /  positive-bg:  #e8f5e9                  */
-                        /* negative: #b71c1c  /  negative-bg:  #ffebee                  */
-                        /* neutral:  #455a64  /  border:        #eceff1                  */
+                        /* cobalt: #1a237e / cobalt-light: #e8eaf6 */
+                        /* positive: #2e7d32 / positive-bg: #e8f5e9 */
+                        /* negative: #b71c1c / negative-bg: #ffebee */
+                        /* neutral: #455a64 / border: #eceff1 */
 
                         /* ── Encabezado de sección ── */
                         .rpt-section-title {
-                            font-size: 9pt;
-                            font-weight: 700;
-                            letter-spacing: 0.08em;
-                            text-transform: uppercase;
-                            color: #1a237e;
-                            border-bottom: 2px solid #1a237e;
-                            padding-bottom: 4px;
-                            margin-bottom: 12px;
-                            margin-top: 18px;
+                        font-size: 9pt;
+                        font-weight: 700;
+                        letter-spacing: 0.08em;
+                        text-transform: uppercase;
+                        color: #1a237e;
+                        border-bottom: 2px solid #1a237e;
+                        padding-bottom: 4px;
+                        margin-bottom: 12px;
+                        margin-top: 18px;
                         }
 
                         /* ── Bloque de filtros del encabezado ── */
                         .rpt-header-filters {
-                            background: #f5f5f5;
-                            border-left: 4px solid #1a237e;
-                            border-radius: 0 6px 6px 0;
-                            padding: 8px 14px;
-                            margin-bottom: 18px;
-                            display: flex;
-                            flex-wrap: wrap;
-                            gap: 6px 22px;
+                        background: #f5f5f5;
+                        border-left: 4px solid #1a237e;
+                        border-radius: 0 6px 6px 0;
+                        padding: 8px 14px;
+                        margin-bottom: 18px;
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 6px 22px;
                         }
 
                         .rpt-filter-chip {
-                            display: inline-flex;
-                            align-items: center;
-                            gap: 5px;
-                            font-size: 8pt;
-                            color: #455a64;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 5px;
+                        font-size: 8pt;
+                        color: #455a64;
                         }
 
                         .rpt-filter-chip .chip-label {
-                            font-weight: 700;
-                            color: #1a237e;
-                            text-transform: uppercase;
-                            font-size: 7pt;
-                            letter-spacing: 0.06em;
+                        font-weight: 700;
+                        color: #1a237e;
+                        text-transform: uppercase;
+                        font-size: 7pt;
+                        letter-spacing: 0.06em;
                         }
 
                         .rpt-filter-chip .chip-value {
-                            color: #263238;
+                        color: #263238;
                         }
 
                         /* ── Grid de KPIs ── */
                         .rpt-kpi-grid {
-                            display: table;
-                            width: 100%;
-                            border-collapse: separate;
-                            border-spacing: 6px;
-                            margin-bottom: 6px;
+                        display: table;
+                        width: 100%;
+                        border-collapse: separate;
+                        border-spacing: 6px;
+                        margin-bottom: 6px;
                         }
 
                         .rpt-kpi-row {
-                            display: table-row;
+                        display: table-row;
                         }
 
                         .rpt-kpi-box {
-                            display: table-cell;
-                            width: 25%;
-                            background: #fafafa;
-                            border: 1px solid #eceff1;
-                            border-radius: 6px;
-                            padding: 10px 12px;
-                            vertical-align: top;
+                        display: table-cell;
+                        width: 25%;
+                        background: #fafafa;
+                        border: 1px solid #eceff1;
+                        border-radius: 6px;
+                        padding: 10px 12px;
+                        vertical-align: top;
                         }
 
                         .rpt-kpi-box.cobalt {
-                            background: #e8eaf6;
-                            border-color: #c5cae9;
+                        background: #e8eaf6;
+                        border-color: #c5cae9;
                         }
 
                         .rpt-kpi-box.positive {
-                            background: #e8f5e9;
-                            border-color: #c8e6c9;
+                        background: #e8f5e9;
+                        border-color: #c8e6c9;
                         }
 
                         .rpt-kpi-box.negative {
-                            background: #ffebee;
-                            border-color: #ffcdd2;
+                        background: #ffebee;
+                        border-color: #ffcdd2;
                         }
 
                         .rpt-kpi-box.warning {
-                            background: #fff8e1;
-                            border-color: #ffecb3;
+                        background: #fff8e1;
+                        border-color: #ffecb3;
                         }
 
                         .rpt-kpi-label {
-                            font-size: 7pt;
-                            font-weight: 700;
-                            text-transform: uppercase;
-                            letter-spacing: 0.07em;
-                            color: #78909c;
-                            margin-bottom: 4px;
+                        font-size: 7pt;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        letter-spacing: 0.07em;
+                        color: #78909c;
+                        margin-bottom: 4px;
                         }
 
-                        .rpt-kpi-box.cobalt   .rpt-kpi-label { color: #3949ab; }
+                        .rpt-kpi-box.cobalt .rpt-kpi-label { color: #3949ab; }
                         .rpt-kpi-box.positive .rpt-kpi-label { color: #388e3c; }
                         .rpt-kpi-box.negative .rpt-kpi-label { color: #c62828; }
-                        .rpt-kpi-box.warning  .rpt-kpi-label { color: #f57f17; }
+                        .rpt-kpi-box.warning .rpt-kpi-label { color: #f57f17; }
 
                         .rpt-kpi-value {
-                            font-size: 13pt;
-                            font-weight: 700;
-                            color: #263238;
-                            line-height: 1.2;
+                        font-size: 13pt;
+                        font-weight: 700;
+                        color: #263238;
+                        line-height: 1.2;
                         }
 
-                        .rpt-kpi-box.cobalt   .rpt-kpi-value { color: #1a237e; }
+                        .rpt-kpi-box.cobalt .rpt-kpi-value { color: #1a237e; }
                         .rpt-kpi-box.positive .rpt-kpi-value { color: #2e7d32; }
                         .rpt-kpi-box.negative .rpt-kpi-value { color: #b71c1c; }
-                        .rpt-kpi-box.warning  .rpt-kpi-value { color: #e65100; }
+                        .rpt-kpi-box.warning .rpt-kpi-value { color: #e65100; }
 
                         .rpt-kpi-sub {
-                            font-size: 7.5pt;
-                            color: #90a4ae;
-                            margin-top: 2px;
+                        font-size: 7.5pt;
+                        color: #90a4ae;
+                        margin-top: 2px;
                         }
 
                         /* ── Contadores de documentos ── */
                         .rpt-doc-counts {
-                            display: table;
-                            width: 100%;
-                            border-collapse: separate;
-                            border-spacing: 5px;
-                            margin-bottom: 14px;
+                        display: table;
+                        width: 100%;
+                        border-collapse: separate;
+                        border-spacing: 5px;
+                        margin-bottom: 14px;
                         }
 
                         .rpt-doc-count-row {
-                            display: table-row;
+                        display: table-row;
                         }
 
                         .rpt-doc-count-cell {
-                            display: table-cell;
-                            text-align: center;
-                            background: #fafafa;
-                            border: 1px solid #eceff1;
-                            border-radius: 6px;
-                            padding: 8px 6px 6px;
-                            vertical-align: middle;
+                        display: table-cell;
+                        text-align: center;
+                        background: #fafafa;
+                        border: 1px solid #eceff1;
+                        border-radius: 6px;
+                        padding: 8px 6px 6px;
+                        vertical-align: middle;
                         }
 
                         .rpt-doc-count-num {
-                            font-size: 15pt;
-                            font-weight: 700;
-                            color: #1a237e;
-                            display: block;
+                        font-size: 15pt;
+                        font-weight: 700;
+                        color: #1a237e;
+                        display: block;
                         }
 
                         .rpt-doc-count-lbl {
-                            font-size: 7pt;
-                            font-weight: 700;
-                            text-transform: uppercase;
-                            letter-spacing: 0.06em;
-                            color: #78909c;
-                            display: block;
-                            margin-top: 2px;
+                        font-size: 7pt;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        letter-spacing: 0.06em;
+                        color: #78909c;
+                        display: block;
+                        margin-top: 2px;
                         }
 
                         /* ── Tablas modernas (sin bordes verticales) ── */
                         .rpt-table {
-                            width: 100%;
-                            border-collapse: collapse;
-                            margin-bottom: 14px;
-                            font-size: 8pt;
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-bottom: 14px;
+                        font-size: 8pt;
                         }
 
                         .rpt-table thead tr {
-                            background: #e8eaf6;
+                        background: #e8eaf6;
                         }
 
                         .rpt-table thead th {
-                            padding: 7px 10px;
-                            font-size: 7pt;
-                            font-weight: 700;
-                            letter-spacing: 0.07em;
-                            text-transform: uppercase;
-                            color: #1a237e;
-                            border-bottom: 2px solid #c5cae9;
-                            /* Sin bordes verticales */
-                            border-left: none;
-                            border-right: none;
-                            border-top: none;
+                        padding: 7px 10px;
+                        font-size: 7pt;
+                        font-weight: 700;
+                        letter-spacing: 0.07em;
+                        text-transform: uppercase;
+                        color: #1a237e;
+                        border-bottom: 2px solid #c5cae9;
+                        /* Sin bordes verticales */
+                        border-left: none;
+                        border-right: none;
+                        border-top: none;
                         }
 
                         .rpt-table tbody tr {
-                            border-bottom: 1px solid #eceff1;
+                        border-bottom: 1px solid #eceff1;
                         }
 
                         .rpt-table tbody tr:last-child {
-                            border-bottom: 2px solid #b0bec5;
+                        border-bottom: 2px solid #b0bec5;
                         }
 
                         /* Filas alternas muy sutiles */
                         .rpt-table tbody tr:nth-child(even) {
-                            background: #fafafa;
+                        background: #fafafa;
                         }
 
                         .rpt-table tbody td {
-                            padding: 6px 10px;
-                            vertical-align: middle;
-                            color: #37474f;
-                            /* Sin bordes verticales */
-                            border-left: none;
-                            border-right: none;
+                        padding: 6px 10px;
+                        vertical-align: middle;
+                        color: #37474f;
+                        /* Sin bordes verticales */
+                        border-left: none;
+                        border-right: none;
                         }
 
                         .rpt-table tfoot tr {
-                            background: #eceff1;
+                        background: #eceff1;
                         }
 
                         .rpt-table tfoot td {
-                            padding: 7px 10px;
-                            font-weight: 700;
-                            font-size: 8.5pt;
-                            color: #263238;
-                            border-top: 2px solid #90a4ae;
-                            border-left: none;
-                            border-right: none;
-                            border-bottom: none;
+                        padding: 7px 10px;
+                        font-weight: 700;
+                        font-size: 8.5pt;
+                        color: #263238;
+                        border-top: 2px solid #90a4ae;
+                        border-left: none;
+                        border-right: none;
+                        border-bottom: none;
                         }
 
                         /* Alineaciones */
-                        .text-right  { text-align: right; }
+                        .text-right { text-align: right; }
                         .text-center { text-align: center; }
-                        .text-left   { text-align: left; }
+                        .text-left { text-align: left; }
 
                         /* Montos financieros: fuente monoespaciada + derecha */
                         .rpt-amount {
-                            font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
-                            text-align: right;
-                            white-space: nowrap;
-                            font-size: 8.5pt;
+                        font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+                        text-align: right;
+                        white-space: nowrap;
+                        font-size: 8.5pt;
                         }
 
                         .rpt-amount.positive { color: #2e7d32; font-weight: 700; }
                         .rpt-amount.negative { color: #b71c1c; font-weight: 700; }
-                        .rpt-amount.bold     { font-weight: 700; color: #263238; }
+                        .rpt-amount.bold { font-weight: 700; color: #263238; }
 
                         /* ── Badge de estado ── */
                         .rpt-badge {
-                            display: inline-block;
-                            padding: 2px 7px;
-                            border-radius: 10px;
-                            font-size: 7pt;
-                            font-weight: 700;
-                            letter-spacing: 0.04em;
+                        display: inline-block;
+                        padding: 2px 7px;
+                        border-radius: 10px;
+                        font-size: 7pt;
+                        font-weight: 700;
+                        letter-spacing: 0.04em;
                         }
 
-                        .rpt-badge.done     { background: #e8f5e9; color: #2e7d32; }
-                        .rpt-badge.pending  { background: #fff8e1; color: #e65100; }
+                        .rpt-badge.done { background: #e8f5e9; color: #2e7d32; }
+                        .rpt-badge.pending { background: #fff8e1; color: #e65100; }
                         .rpt-badge.canceled { background: #fafafa; color: #90a4ae; }
 
                         /* ── Tabla de rentabilidad consolidada ── */
                         .rpt-prof-table {
-                            width: 100%;
-                            border-collapse: collapse;
-                            font-size: 8.5pt;
-                            margin-bottom: 14px;
+                        width: 100%;
+                        border-collapse: collapse;
+                        font-size: 8.5pt;
+                        margin-bottom: 14px;
                         }
 
                         .rpt-prof-table .section-header td {
-                            font-size: 7.5pt;
-                            font-weight: 700;
-                            text-transform: uppercase;
-                            letter-spacing: 0.08em;
-                            color: #78909c;
-                            background: #f5f5f5;
-                            padding: 5px 10px;
-                            border-top: 1px solid #eceff1;
-                            border-bottom: 1px solid #eceff1;
+                        font-size: 7.5pt;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        letter-spacing: 0.08em;
+                        color: #78909c;
+                        background: #f5f5f5;
+                        padding: 5px 10px;
+                        border-top: 1px solid #eceff1;
+                        border-bottom: 1px solid #eceff1;
                         }
 
                         .rpt-prof-table .data-row td {
-                            padding: 6px 10px;
-                            border-bottom: 1px solid #f5f5f5;
+                        padding: 6px 10px;
+                        border-bottom: 1px solid #f5f5f5;
                         }
 
                         .rpt-prof-table .data-row.subtotal td {
-                            font-weight: 700;
-                            background: #fafafa;
-                            border-top: 1px solid #eceff1;
-                            border-bottom: 1px solid #eceff1;
+                        font-weight: 700;
+                        background: #fafafa;
+                        border-top: 1px solid #eceff1;
+                        border-bottom: 1px solid #eceff1;
                         }
 
                         .rpt-prof-table .data-row.total-final td {
-                            font-size: 10pt;
-                            font-weight: 700;
-                            padding: 10px;
-                            border-top: 2px solid #1a237e;
-                            border-bottom: 2px solid #1a237e;
+                        font-size: 10pt;
+                        font-weight: 700;
+                        padding: 10px;
+                        border-top: 2px solid #1a237e;
+                        border-bottom: 2px solid #1a237e;
                         }
 
                         /* ── Barra de progreso de margen ── */
                         .rpt-margin-bar-bg {
-                            background: #eceff1;
-                            border-radius: 4px;
-                            height: 10px;
-                            width: 100%;
-                            overflow: hidden;
-                            margin-top: 4px;
+                        background: #eceff1;
+                        border-radius: 4px;
+                        height: 10px;
+                        width: 100%;
+                        overflow: hidden;
+                        margin-top: 4px;
                         }
 
                         .rpt-margin-bar-fill {
-                            height: 10px;
-                            border-radius: 4px;
-                            background: #2e7d32;
+                        height: 10px;
+                        border-radius: 4px;
+                        background: #2e7d32;
                         }
 
                         .rpt-margin-bar-fill.negative {
-                            background: #b71c1c;
+                        background: #b71c1c;
                         }
 
                         /* ── Pie de página del reporte ── */
                         .rpt-footer-note {
-                            font-size: 7pt;
-                            color: #90a4ae;
-                            text-align: center;
-                            margin-top: 18px;
-                            padding-top: 8px;
-                            border-top: 1px solid #eceff1;
+                        font-size: 7pt;
+                        color: #90a4ae;
+                        text-align: center;
+                        margin-top: 18px;
+                        padding-top: 8px;
+                        border-top: 1px solid #eceff1;
                         }
 
                         /* ── Salto de página controlado ── */
                         .page-break { page-break-before: always; }
-                        .no-break   { page-break-inside: avoid; }
+                        .no-break { page-break-inside: avoid; }
 
                         /* ── Contenedor general del reporte ── */
                         .rpt-body {
-                            padding: 0 4px;
+                        padding: 0 4px;
                         }
 
                         /* ── Alerta inline (reemplaza al alert bootstrap) ── */
                         .rpt-alert {
-                            padding: 8px 12px;
-                            border-radius: 5px;
-                            font-size: 8pt;
-                            margin-bottom: 12px;
-                            border-left: 4px solid;
+                        padding: 8px 12px;
+                        border-radius: 5px;
+                        font-size: 8pt;
+                        margin-bottom: 12px;
+                        border-left: 4px solid;
                         }
 
                         .rpt-alert.danger {
-                            background: #ffebee;
-                            border-color: #b71c1c;
-                            color: #b71c1c;
+                        background: #ffebee;
+                        border-color: #b71c1c;
+                        color: #b71c1c;
                         }
 
                         .rpt-alert.warning {
-                            background: #fff8e1;
-                            border-color: #e65100;
-                            color: #e65100;
+                        background: #fff8e1;
+                        border-color: #e65100;
+                        color: #e65100;
                         }
                     </style>
 
@@ -414,13 +414,12 @@
                     <div class="rpt-body">
 
                         <!-- ── Título principal ── -->
-                        <h2 style="font-size:14pt; font-weight:700; color:#1a237e; margin-bottom:6px;">
+                        <h2
+                            style="font-size:14pt; font-weight:700; color:#1a237e; margin-bottom:6px;">
                             Análisis de Rentabilidad de Proyecto
                         </h2>
-                        <p style="font-size:8pt; color:#78909c; margin-bottom:14px;">
-                            Generado el
-                            <t t-esc="report_date" /> —
-                            <t t-esc="company_name" />
+                        <p style="font-size:8pt; color:#78909c; margin-bottom:14px;"> Generado el <t
+                                t-esc="report_date" /> — <t t-esc="company_name" />
                         </p>
 
                         <!-- ── Bloque de filtros aplicados ── -->
@@ -453,12 +452,13 @@
 
                         <!-- ── ALERTAS (si aplica) ── -->
                         <div class="rpt-alert danger no-break"
-                             t-if="alert_negative_profit">
-                            ⚠ Rentabilidad Negativa — Los costos han superado los ingresos facturados.
+                            t-if="alert_negative_profit">
+                            ⚠ Rentabilidad Negativa — Los costos han superado los ingresos
+                            facturados.
                             Se requiere revisión inmediata.
                         </div>
                         <div class="rpt-alert warning no-break"
-                             t-if="alert_low_margin and not alert_negative_profit">
+                            t-if="alert_low_margin and not alert_negative_profit">
                             ⚑ Margen de Ganancia Bajo — El margen es inferior al 10%.
                             Considere optimizar costos operativos.
                         </div>
@@ -477,6 +477,13 @@
                                         <t t-esc="kpi_counts['tasks']" />
                                     </span>
                                     <span class="rpt-doc-count-lbl">Tareas</span>
+                                </div>
+                                <div class="rpt-doc-count-cell">
+                                    <span class="rpt-doc-count-num" style="color:#2e7d32;">
+                                        <t t-esc="kpi_counts['avances']" />
+                                    </span>
+                                    <span class="rpt-doc-count-lbl" style="color:#2e7d32;">Avances
+                                        Físicos</span>
                                 </div>
                                 <div class="rpt-doc-count-cell">
                                     <span class="rpt-doc-count-num">
@@ -511,9 +518,15 @@
                                     </span>
                                 </div>
                                 <div class="rpt-doc-count-cell">
-                                    <span class="rpt-doc-count-num">
-                                        <t t-esc="'%.1f' % timesheet_hours" /> h
+                                    <span class="rpt-doc-count-num" style="color:#0d47a1;">
+                                        <t t-esc="kpi_counts['compensations']" />
                                     </span>
+                                    <span class="rpt-doc-count-lbl" style="color:#0d47a1;">
+                                        Compensaciones</span>
+                                </div>
+                                <div class="rpt-doc-count-cell">
+                                    <span class="rpt-doc-count-num">
+                                        <t t-esc="'%.1f' % timesheet_hours" /> h </span>
                                     <span class="rpt-doc-count-lbl">Horas</span>
                                 </div>
                             </div>
@@ -521,44 +534,50 @@
 
                         <!-- KPIs financieros principales (2 filas) -->
                         <div class="rpt-kpi-grid no-break">
-                            <!-- Fila 1: Ingresos -->
+                            <!-- Fila 1: Producción (Avances) -->
                             <div class="rpt-kpi-row">
                                 <div class="rpt-kpi-box cobalt">
-                                    <div class="rpt-kpi-label">Ingresos Esperados</div>
+                                    <div class="rpt-kpi-label">Producción Total (Avances)</div>
                                     <div class="rpt-kpi-value">
-                                        <t t-esc="fmt(profitability['expected_income'])" />
+                                        <t t-esc="fmt(profitability['production_avances'])" />
                                     </div>
-                                    <div class="rpt-kpi-sub">Total líneas de venta</div>
+                                    <div class="rpt-kpi-sub">OV Esperada: <t
+                                            t-esc="fmt(profitability['expected_income'])" /></div>
                                 </div>
                                 <div class="rpt-kpi-box positive">
-                                    <div class="rpt-kpi-label">Facturado</div>
+                                    <div class="rpt-kpi-label">Producción Facturada</div>
                                     <div class="rpt-kpi-value">
-                                        <t t-esc="fmt(profitability['invoiced_income'])" />
+                                        <t t-esc="fmt(profitability['production_avances_billed'])" />
                                     </div>
-                                    <div class="rpt-kpi-sub">Facturas posted</div>
+                                    <div class="rpt-kpi-sub">OV Facturada: <t
+                                            t-esc="fmt(profitability['invoiced_income'])" /></div>
                                 </div>
                                 <div class="rpt-kpi-box warning">
-                                    <div class="rpt-kpi-label">Por Facturar</div>
+                                    <div class="rpt-kpi-label">Producción No Facturada</div>
                                     <div class="rpt-kpi-value">
-                                        <t t-esc="fmt(profitability['to_invoice_income'])" />
+                                        <t t-esc="fmt(profitability['production_avances_to_bill'])" />
                                     </div>
-                                    <div class="rpt-kpi-sub">Pendiente de emisión</div>
+                                    <div class="rpt-kpi-sub">OV Pendiente: <t
+                                            t-esc="fmt(profitability['to_invoice_income'])" /></div>
                                 </div>
-                                <div t-attf-class="rpt-kpi-box #{
+                                <div
+                                    t-attf-class="rpt-kpi-box #{
                                         'positive' if profitability['profit_percentage'] >= 10
                                         else 'negative' if profitability['profit_percentage'] &lt; 0
                                         else 'warning'
                                     }">
                                     <div class="rpt-kpi-label">% Rentabilidad</div>
                                     <div class="rpt-kpi-value">
-                                        <t t-esc="('%.2f' % profitability['profit_percentage']) + '%'" />
+                                        <t
+                                            t-esc="('%.2f' % profitability['profit_percentage']) + '%'" />
                                     </div>
                                     <!-- Barra de progreso de margen -->
                                     <div class="rpt-margin-bar-bg" style="margin-top:5px;">
-                                        <div t-attf-class="rpt-margin-bar-fill #{
+                                        <div
+                                            t-attf-class="rpt-margin-bar-fill #{
                                                 'negative' if profitability['profit_percentage'] &lt; 0 else ''
                                             }"
-                                             t-attf-style="width: #{
+                                            t-attf-style="width: #{
                                                  min(abs(profitability['profit_percentage']), 100)
                                              }%;" />
                                     </div>
@@ -580,29 +599,31 @@
                                     <div class="rpt-kpi-value" style="color:#455a64;">
                                         <t t-esc="fmt(profitability['total_purchases'])" />
                                     </div>
-                                    <div class="rpt-kpi-sub">
-                                        Inc: <t t-esc="fmt(profitability['purchase_incurred'])" /> /
+                                    <div class="rpt-kpi-sub"> Inc: <t
+                                            t-esc="fmt(profitability['purchase_incurred'])" /> /
                                         Com: <t t-esc="fmt(profitability['purchase_committed'])" />
                                     </div>
                                 </div>
                                 <div class="rpt-kpi-box">
                                     <div class="rpt-kpi-label">Mat. + Mano de Obra</div>
                                     <div class="rpt-kpi-value" style="color:#455a64;">
-                                        <t t-esc="fmt(profitability['total_stock_moves'] + profitability['timesheet_cost'])" />
+                                        <t
+                                            t-esc="fmt(profitability['total_stock_moves'] + profitability['timesheet_cost'])" />
                                     </div>
-                                    <div class="rpt-kpi-sub">
-                                        Almacén: <t t-esc="fmt(profitability['total_stock_moves'])" /> /
+                                    <div class="rpt-kpi-sub"> Almacén: <t
+                                            t-esc="fmt(profitability['total_stock_moves'])" /> /
                                         Horas: <t t-esc="fmt(profitability['timesheet_cost'])" />
                                     </div>
                                 </div>
-                                <div t-attf-class="rpt-kpi-box #{
+                                <div
+                                    t-attf-class="rpt-kpi-box #{
                                         'positive' if profitability['margin_total'] >= 0 else 'negative'
                                     }">
                                     <div class="rpt-kpi-label">Margen Neto</div>
                                     <div class="rpt-kpi-value">
                                         <t t-esc="fmt(profitability['margin_total'])" />
                                     </div>
-                                    <div class="rpt-kpi-sub">Facturado − Costos</div>
+                                    <div class="rpt-kpi-sub">Avances − Costos</div>
                                 </div>
                             </div>
                         </div>
@@ -615,31 +636,35 @@
 
                         <table class="rpt-prof-table no-break">
                             <colgroup>
-                                <col style="width:45%"/>
-                                <col style="width:18.3%"/>
-                                <col style="width:18.3%"/>
-                                <col style="width:18.3%"/>
+                                <col style="width:45%" />
+                                <col style="width:18.3%" />
+                                <col style="width:18.3%" />
+                                <col style="width:18.3%" />
                             </colgroup>
                             <thead>
                                 <tr style="background:#e8eaf6;">
-                                    <th style="padding:7px 10px; font-size:7.5pt; font-weight:700;
+                                    <th
+                                        style="padding:7px 10px; font-size:7.5pt; font-weight:700;
                                                color:#1a237e; border-bottom:2px solid #c5cae9;
                                                text-transform:uppercase; letter-spacing:.06em;">
                                         Concepto
                                     </th>
-                                    <th style="padding:7px 10px; text-align:right; font-size:7.5pt;
+                                    <th
+                                        style="padding:7px 10px; text-align:right; font-size:7.5pt;
                                                font-weight:700; color:#1a237e;
                                                border-bottom:2px solid #c5cae9;
                                                text-transform:uppercase; letter-spacing:.06em;">
                                         Facturado
                                     </th>
-                                    <th style="padding:7px 10px; text-align:right; font-size:7.5pt;
+                                    <th
+                                        style="padding:7px 10px; text-align:right; font-size:7.5pt;
                                                font-weight:700; color:#1a237e;
                                                border-bottom:2px solid #c5cae9;
                                                text-transform:uppercase; letter-spacing:.06em;">
                                         Por Facturar
                                     </th>
-                                    <th style="padding:7px 10px; text-align:right; font-size:7.5pt;
+                                    <th
+                                        style="padding:7px 10px; text-align:right; font-size:7.5pt;
                                                font-weight:700; color:#1a237e;
                                                border-bottom:2px solid #c5cae9;
                                                text-transform:uppercase; letter-spacing:.06em;">
@@ -652,15 +677,30 @@
                                 <tr class="section-header">
                                     <td colspan="4">INGRESOS</td>
                                 </tr>
+                                <!-- Producción desde Avances Físicos -->
                                 <tr class="data-row">
-                                    <td style="padding-left:20px;">Producción / Ventas</td>
+                                    <td style="padding-left:20px;">Producción (Avances Físicos)</td>
                                     <td class="rpt-amount positive">
-                                        <t t-esc="fmt(profitability['invoiced_income'])" />
+                                        <t t-esc="fmt(profitability['production_avances_billed'])" />
                                     </td>
                                     <td class="rpt-amount">
-                                        <t t-esc="fmt(profitability['to_invoice_income'])" />
+                                        <t t-esc="fmt(profitability['production_avances_to_bill'])" />
                                     </td>
                                     <td class="rpt-amount bold">
+                                        <t t-esc="fmt(profitability['production_avances'])" />
+                                    </td>
+                                </tr>
+                                <!-- Referencia: OV -->
+                                <tr class="data-row" style="color:#90a4ae; font-size:7.5pt;">
+                                    <td style="padding-left:30px; font-style:italic;">↳ Ref. Órdenes
+                                        de Venta</td>
+                                    <td class="rpt-amount" style="color:#90a4ae;">
+                                        <t t-esc="fmt(profitability['invoiced_income'])" />
+                                    </td>
+                                    <td class="rpt-amount" style="color:#90a4ae;">
+                                        <t t-esc="fmt(profitability['to_invoice_income'])" />
+                                    </td>
+                                    <td class="rpt-amount" style="color:#90a4ae;">
                                         <t t-esc="fmt(profitability['expected_income'])" />
                                     </td>
                                 </tr>
@@ -682,59 +722,98 @@
                                     </td>
                                 </tr>
                                 <tr class="data-row">
-                                    <td style="padding-left:20px;">
-                                        Materiales (Mov. Almacén)
+                                    <td style="padding-left:20px;">Materiales (Mov. Almacén)</td>
+                                    <td class="rpt-amount">
+                                        <t t-esc="fmt(profitability['stock_billed'])" />
                                     </td>
-                                    <td class="rpt-amount">—</td>
-                                    <td class="rpt-amount">—</td>
+                                    <td class="rpt-amount">
+                                        <t t-esc="fmt(profitability['stock_to_bill'])" />
+                                    </td>
                                     <td class="rpt-amount">
                                         <t t-esc="fmt(profitability['total_stock_moves'])" />
                                     </td>
                                 </tr>
                                 <tr class="data-row">
                                     <td style="padding-left:20px;">Mano de Obra (Horas)</td>
-                                    <td class="rpt-amount">—</td>
-                                    <td class="rpt-amount">—</td>
+                                    <td class="rpt-amount">
+                                        <t t-esc="fmt(profitability['timesheet_billed'])" />
+                                    </td>
+                                    <td class="rpt-amount">
+                                        <t t-esc="fmt(profitability['timesheet_to_bill'])" />
+                                    </td>
                                     <td class="rpt-amount">
                                         <t t-esc="fmt(profitability['timesheet_cost'])" />
                                     </td>
                                 </tr>
                                 <tr class="data-row">
                                     <td style="padding-left:20px;">Gastos</td>
-                                    <td class="rpt-amount">—</td>
-                                    <td class="rpt-amount">—</td>
+                                    <td class="rpt-amount">
+                                        <t t-esc="fmt(profitability['expenses_billed'])" />
+                                    </td>
+                                    <td class="rpt-amount">
+                                        <t t-esc="fmt(profitability['expenses_to_bill'])" />
+                                    </td>
                                     <td class="rpt-amount">
                                         <t t-esc="fmt(profitability['total_expenses'])" />
                                     </td>
                                 </tr>
                                 <tr class="data-row subtotal">
                                     <td style="padding-left:20px;">Total Costos</td>
-                                    <td class="rpt-amount negative">—</td>
-                                    <td class="rpt-amount negative">—</td>
+                                    <td class="rpt-amount negative">
+                                        <t
+                                            t-esc="fmt(
+                                            profitability['purchase_incurred']
+                                            + profitability['stock_billed']
+                                            + profitability['timesheet_billed']
+                                            + profitability['expenses_billed']
+                                        )" />
+                                    </td>
+                                    <td class="rpt-amount negative">
+                                        <t
+                                            t-esc="fmt(
+                                            profitability['purchase_committed']
+                                            + profitability['stock_to_bill']
+                                            + profitability['timesheet_to_bill']
+                                            + profitability['expenses_to_bill']
+                                        )" />
+                                    </td>
                                     <td class="rpt-amount negative">
                                         <t t-esc="fmt(profitability['total_costs'])" />
                                     </td>
                                 </tr>
 
                                 <!-- MARGEN FINAL -->
-                                <tr t-attf-class="data-row total-final #{
+                                <tr
+                                    t-attf-class="data-row total-final #{
                                         'positive' if profitability['margin_total'] >= 0 else 'negative'
                                     }">
-                                    <td>Margen Neto (Facturado − Costos)</td>
-                                    <td class="rpt-amount" t-attf-style="
+                                    <td>Margen Neto (Avances − Costos)</td>
+                                    <td class="rpt-amount"
+                                        t-attf-style="
+                                            color: #{'#2e7d32' if profitability['margin_billed'] >= 0 else '#b71c1c'};
+                                            font-family: 'DejaVu Sans Mono', monospace;
+                                            text-align: right;
+                                        ">
+                                        <t t-esc="fmt(profitability['margin_billed'])" />
+                                    </td>
+                                    <td class="rpt-amount"
+                                        t-attf-style="
+                                            color: #{'#2e7d32' if profitability['margin_to_bill'] >= 0 else '#b71c1c'};
+                                            font-family: 'DejaVu Sans Mono', monospace;
+                                            text-align: right;
+                                        ">
+                                        <t t-esc="fmt(profitability['margin_to_bill'])" />
+                                    </td>
+                                    <td class="rpt-amount"
+                                        t-attf-style="
                                             color: #{'#2e7d32' if profitability['margin_total'] >= 0 else '#b71c1c'};
                                             font-family: 'DejaVu Sans Mono', monospace;
                                             text-align: right;
                                         ">
                                         <t t-esc="fmt(profitability['margin_total'])" />
-                                    </td>
-                                    <td class="rpt-amount">—</td>
-                                    <td class="rpt-amount" t-attf-style="
-                                            color: #{'#2e7d32' if profitability['margin_total'] >= 0 else '#b71c1c'};
-                                            font-family: 'DejaVu Sans Mono', monospace;
-                                            text-align: right;
-                                        ">
-                                        <t t-esc="('%.2f' % profitability['profit_percentage']) + '%'" />
+                                        <span style="font-size:7pt; color:#78909c;"> (<t
+                                                t-esc="('%.2f' % profitability['profit_percentage']) + '%'" />
+                                            )</span>
                                     </td>
                                 </tr>
                             </tbody>
@@ -753,6 +832,7 @@
                                 <thead>
                                     <tr>
                                         <th>Orden</th>
+                                        <th class="text-center">Fecha</th>
                                         <th>Proveedor</th>
                                         <th>Proyecto / Tarea</th>
                                         <th>Producto</th>
@@ -764,20 +844,29 @@
                                 </thead>
                                 <tbody>
                                     <tr t-foreach="purchases_list" t-as="p">
-                                        <td style="font-weight:700; color:#1a237e; white-space:nowrap;">
+                                        <td
+                                            style="font-weight:700; color:#1a237e; white-space:nowrap;">
                                             <t t-esc="p['order_name']" />
                                         </td>
-                                        <td><t t-esc="p['partner']" /></td>
+                                        <td class="text-center" style="white-space:nowrap;">
+                                            <t t-esc="p['date']"
+                                                t-options='{"widget": "date"}' />
+                                        </td>
+                                        <td>
+                                            <t t-esc="p['partner']" />
+                                        </td>
                                         <td>
                                             <span style="font-weight:600;">
                                                 <t t-esc="p['project_name'] or '—'" />
                                             </span>
-                                            <br/>
+                                            <br />
                                             <span style="color:#78909c; font-size:7.5pt;">
                                                 <t t-esc="p['task_name']" />
                                             </span>
                                         </td>
-                                        <td><t t-esc="p['product']" /></td>
+                                        <td>
+                                            <t t-esc="p['product']" />
+                                        </td>
                                         <td class="text-center">
                                             <t t-esc="'%.2f' % p['qty']" />
                                         </td>
@@ -788,7 +877,8 @@
                                             <t t-esc="fmt(p['total'])" />
                                         </td>
                                         <td class="text-center">
-                                            <span t-attf-class="rpt-badge #{
+                                            <span
+                                                t-attf-class="rpt-badge #{
                                                 'done' if p['state_raw'] in ('purchase','done')
                                                 else 'pending'
                                             }">
@@ -799,7 +889,7 @@
                                 </tbody>
                                 <tfoot>
                                     <tr>
-                                        <td colspan="6" class="text-right">Total Compras</td>
+                                        <td colspan="7" class="text-right">Total Compras</td>
                                         <td class="rpt-amount negative">
                                             <t t-esc="fmt(profitability['total_purchases'])" />
                                         </td>
@@ -835,19 +925,21 @@
                                         <td style="font-weight:600;">
                                             <t t-esc="exp['employee']" />
                                         </td>
-                                        <td><t t-esc="exp['product']" /></td>
+                                        <td>
+                                            <t t-esc="exp['product']" />
+                                        </td>
                                         <td>
                                             <span style="font-weight:600;">
                                                 <t t-esc="exp['project_name'] or '—'" />
                                             </span>
-                                            <br/>
+                                            <br />
                                             <span style="color:#78909c; font-size:7.5pt;">
                                                 <t t-esc="exp['task_name']" />
                                             </span>
                                         </td>
                                         <td class="text-center" style="white-space:nowrap;">
                                             <t t-esc="exp['date']"
-                                               t-options='{"widget": "date"}' />
+                                                t-options='{"widget": "date"}' />
                                         </td>
                                         <td style="color:#78909c;">
                                             <t t-esc="exp['sheet_name']" />
@@ -856,7 +948,8 @@
                                             <t t-esc="fmt(exp['total'])" />
                                         </td>
                                         <td class="text-center">
-                                            <span t-attf-class="rpt-badge #{
+                                            <span
+                                                t-attf-class="rpt-badge #{
                                                 'done' if exp['state_raw'] in ('done','post')
                                                 else 'pending'
                                             }">
@@ -905,25 +998,26 @@
                                             <t t-esc="mv['product_name']" />
                                             <br t-if="mv['lot_name'] != '-'" />
                                             <span t-if="mv['lot_name'] != '-'"
-                                                  style="color:#78909c; font-size:7.5pt;">
-                                                Lote: <t t-esc="mv['lot_name']" />
+                                                style="color:#78909c; font-size:7.5pt;"> Lote: <t
+                                                    t-esc="mv['lot_name']" />
                                             </span>
                                         </td>
-                                        <td style="white-space:nowrap; color:#1a237e; font-weight:600;">
+                                        <td
+                                            style="white-space:nowrap; color:#1a237e; font-weight:600;">
                                             <t t-esc="mv['picking']" />
                                         </td>
                                         <td>
                                             <span style="font-weight:600;">
                                                 <t t-esc="mv['project_name'] or '—'" />
                                             </span>
-                                            <br/>
+                                            <br />
                                             <span style="color:#78909c; font-size:7.5pt;">
                                                 <t t-esc="mv['task_name']" />
                                             </span>
                                         </td>
                                         <td class="text-center" style="white-space:nowrap;">
                                             <t t-esc="mv['date']"
-                                               t-options='{"widget": "date"}' />
+                                                t-options='{"widget": "date"}' />
                                         </td>
                                         <td class="text-center">
                                             <t t-esc="'%.2f' % mv['quantity']" />
@@ -934,13 +1028,15 @@
                                         <td class="rpt-amount">
                                             <t t-esc="fmt(mv['price_unit'])" />
                                         </td>
-                                        <td t-attf-class="rpt-amount #{
+                                        <td
+                                            t-attf-class="rpt-amount #{
                                                 'negative' if mv['total_cost'] > 0 else 'positive'
                                             }">
                                             <t t-esc="fmt(mv['total_cost'])" />
                                         </td>
                                         <td class="text-center">
-                                            <span t-attf-class="rpt-badge #{
+                                            <span
+                                                t-attf-class="rpt-badge #{
                                                 'done' if mv['state_raw'] == 'done' else 'pending'
                                             }">
                                                 <t t-esc="mv['state_label']" />
@@ -990,17 +1086,20 @@
                                 </thead>
                                 <tbody>
                                     <tr t-foreach="invoices_list" t-as="inv">
-                                        <td style="font-weight:700; color:#1a237e; white-space:nowrap;">
+                                        <td
+                                            style="font-weight:700; color:#1a237e; white-space:nowrap;">
                                             <t t-esc="inv['name']" />
                                         </td>
-                                        <td><t t-esc="inv['partner']" /></td>
+                                        <td>
+                                            <t t-esc="inv['partner']" />
+                                        </td>
                                         <td class="text-center" style="white-space:nowrap;">
                                             <t t-esc="inv['invoice_date']"
-                                               t-options='{"widget": "date"}' />
+                                                t-options='{"widget": "date"}' />
                                         </td>
                                         <td class="text-center" style="white-space:nowrap;">
                                             <t t-esc="inv['invoice_date_due']"
-                                               t-options='{"widget": "date"}' />
+                                                t-options='{"widget": "date"}' />
                                         </td>
                                         <td class="rpt-amount">
                                             <t t-esc="fmt(inv['amount_untaxed'])" />
@@ -1011,14 +1110,16 @@
                                         <td class="rpt-amount bold">
                                             <t t-esc="fmt(inv['amount_total'])" />
                                         </td>
-                                        <td t-attf-class="rpt-amount #{
+                                        <td
+                                            t-attf-class="rpt-amount #{
                                                 'positive' if inv['amount_residual'] == 0
                                                 else 'negative'
                                             }">
                                             <t t-esc="fmt(inv['amount_residual'])" />
                                         </td>
                                         <td class="text-center">
-                                            <span t-attf-class="rpt-badge #{
+                                            <span
+                                                t-attf-class="rpt-badge #{
                                                 'done'     if inv['state'] == 'posted' and inv['payment_state'] == 'paid'
                                                 else 'pending'  if inv['state'] == 'posted'
                                                 else 'canceled'
@@ -1032,16 +1133,20 @@
                                     <tr>
                                         <td colspan="4" class="text-right">Totales</td>
                                         <td class="rpt-amount bold">
-                                            <t t-esc="fmt(sum(i['amount_untaxed'] for i in invoices_list))" />
+                                            <t
+                                                t-esc="fmt(sum(i['amount_untaxed'] for i in invoices_list))" />
                                         </td>
                                         <td class="rpt-amount" style="color:#78909c;">
-                                            <t t-esc="fmt(sum(i['amount_tax'] for i in invoices_list))" />
+                                            <t
+                                                t-esc="fmt(sum(i['amount_tax'] for i in invoices_list))" />
                                         </td>
                                         <td class="rpt-amount bold">
-                                            <t t-esc="fmt(sum(i['amount_total'] for i in invoices_list))" />
+                                            <t
+                                                t-esc="fmt(sum(i['amount_total'] for i in invoices_list))" />
                                         </td>
                                         <td class="rpt-amount negative">
-                                            <t t-esc="fmt(sum(i['amount_residual'] for i in invoices_list))" />
+                                            <t
+                                                t-esc="fmt(sum(i['amount_residual'] for i in invoices_list))" />
                                         </td>
                                         <td />
                                     </tr>
@@ -1054,17 +1159,20 @@
 
 
                         <!-- ── Nota de pie ── -->
-                        <div class="rpt-footer-note">
-                            Reporte generado automáticamente por el módulo de Análisis de
-                            Rentabilidad · <t t-esc="company_name" /> ·
-                            Todos los montos expresados en <t t-esc="currency_name" />
+                        <div class="rpt-footer-note"> Reporte generado automáticamente por el módulo
+                            de Análisis de Rentabilidad · <t t-esc="company_name" /> · Todos los
+                            montos expresados en <t t-esc="currency_name" />
                         </div>
 
-                    </div> <!-- /rpt-body -->
+                    </div> <!--
+                    /rpt-body -->
 
-                </t> <!-- /web.external_layout -->
-            </t> <!-- /t-foreach docs -->
-        </t> <!-- /web.html_container -->
+                </t> <!--
+                /web.external_layout -->
+            </t> <!--
+            /t-foreach docs -->
+        </t> <!--
+        /web.html_container -->
     </template>
 
 </odoo>

@@ -16,4 +16,4 @@ access_asignar_avances_project_wizard,Asignar Avances Project Wizard,model_asign
 access_task_update,access_task_update,model_task_update,base.group_user,1,1,1,1
 access_pending_service_wizard,Pending Service Wizard,model_pending_service_wizard,project.group_project_user,1,1,1,1
 access_pending_service_wizard_line,Pending Service Wizard Line,model_pending_service_wizard_line,project.group_project_user,1,1,1,1
-access_project_profitability_report,Project Profitability Report,model_project_profitability_report,project.group_project_user,1,1,1,1
+access_project_profitability_report,Project Profitability Report,model_project_profitability_report,project.group_project_manager,1,1,1,1
