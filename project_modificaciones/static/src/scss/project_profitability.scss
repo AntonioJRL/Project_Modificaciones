@@ -56,6 +56,7 @@
 
 /* Colors */
 .kpi-blue .kpi-icon-wrapper {
+<<<<<<< HEAD
     background-color: #e7f1ff;
     color: #0d6efd;
 }
@@ -73,12 +74,32 @@
 .kpi-orange .kpi-icon-wrapper {
     background-color: #ffe5d0;
     color: #fd7e14;
+=======
+    background-color: #eef2ff;
+    color: #1e3a8a;
+}
+
+.kpi-green .kpi-icon-wrapper {
+    background-color: #e6f7ef;
+    color: #047857;
+}
+
+.kpi-purple .kpi-icon-wrapper {
+    background-color: #e8f1ff;
+    color: #0f4c81;
+}
+
+.kpi-orange .kpi-icon-wrapper {
+    background-color: #fff3e6;
+    color: #b45309;
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
 }
 
 
 /* Dashboard General Styles */
 .o_dashboard_container {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+<<<<<<< HEAD
     color: #212529;
     background-color: #f8f9fa;
     border-radius: 8px;
@@ -89,35 +110,70 @@
     border-radius: 12px;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
     border: 1px solid rgba(0, 0, 0, 0.05);
+=======
+    color: #374151;
+    background: linear-gradient(180deg, #fafbfc 0%, #f6f8fb 100%);
+    border-radius: 14px;
+    border: 1px solid rgba(15, 23, 42, 0.05);
+    box-shadow: 0 8px 30px rgba(15, 23, 42, 0.04);
+}
+
+.kpi-card {
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     overflow: hidden;
     margin-bottom: 20px;
 }
 
 .kpi-table th {
+<<<<<<< HEAD
     background-color: #fcfcfc;
     text-transform: uppercase;
     font-size: 0.75rem;
     letter-spacing: 0.5px;
     color: #6c757d;
     border-bottom: 1px solid #eee;
+=======
+    background-color: #f8f9fa;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    color: #6b7280;
+    border-bottom: 1px solid #e2e6ea;
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     padding: 12px 8px;
 }
 
 .kpi-table td {
     padding: 12px 8px;
     vertical-align: middle;
+<<<<<<< HEAD
     border-bottom: 1px solid #f0f0f0;
+=======
+    border-bottom: 1px solid #eef2f7;
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     font-size: 0.9rem;
 }
 
 .section-header {
     background-color: #f8f9fa;
     font-weight: bold;
+<<<<<<< HEAD
     color: #495057;
     font-size: 0.85rem;
     padding: 8px 12px;
     border-bottom: 1px solid #eee;
     border-top: 1px solid #eee;
+=======
+    color: #374151;
+    font-size: 0.85rem;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e2e6ea;
+    border-top: 1px solid #e2e6ea;
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
 }
 
 .badge-percent {
@@ -133,11 +189,16 @@
 .active-dot {
     height: 6px;
     width: 6px;
+<<<<<<< HEAD
     background-color: #28a745;
+=======
+    background-color: #047857;
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     border-radius: 50%;
     display: inline-block;
     margin-right: 6px;
     vertical-align: middle;
+<<<<<<< HEAD
     box-shadow: 0 0 4px rgba(40, 167, 69, 0.4);
 }
 
@@ -149,6 +210,19 @@
 .bg-soft-danger {
     background-color: #f8d7da;
     color: #842029;
+=======
+    box-shadow: 0 0 4px rgba(4, 120, 87, 0.4);
+}
+
+.bg-soft-success {
+    background-color: #e6f7ef;
+    color: #047857;
+}
+
+.bg-soft-danger {
+    background-color: #fef2f2;
+    color: #b91c1c;
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
 }
 
 .table-scroll-container {
@@ -838,6 +912,7 @@
 /* KPI cobalt: facturas de cliente */
 .kpi-cobalt {
     /*background: #e8eaf6 !important;*/
+<<<<<<< HEAD
     color: #1a237e !important;
 }
 
@@ -852,6 +927,22 @@
 
 .kpi-cobalt .kpi-label {
     color: #283593 !important;
+=======
+    color: #1e3a8a !important;
+}
+
+.kpi-cobalt .kpi-icon-wrapper {
+    background: #eef2ff !important;
+    color: #1e3a8a !important;
+}
+
+.kpi-cobalt .kpi-value {
+    color: #1e3a8a !important;
+}
+
+.kpi-cobalt .kpi-label {
+    color: #0f4c81 !important;
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -1080,4 +1171,17 @@
 .kpi-card>div>h6,
 .icon-tooltip {
     overflow: visible !important;
+<<<<<<< HEAD
 }
+=======
+}
+
+/* Tooltips del tablero de control: evitar recorte dentro de la card kanban */
+.pcb-tooltip-card,
+.pcb-tooltip-card > div,
+.pcb-tooltip-card .row,
+.pcb-tooltip-card .col-6,
+.pcb-tooltip-card .icon-tooltip {
+    overflow: visible !important;
+}
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)

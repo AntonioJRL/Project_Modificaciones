@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from . import hr_expense
 from . import purchase_order
 from . import stock
@@ -12,6 +13,18 @@ from . import sale_line
 from . import sale_order
 from . import project_tags
 from . import supervisor
+=======
+from . import project_task
+from . import project_update
+from . import res_partner
+from . import project
+from . import sale_line
+from . import project_sub_update
+from . import sale_order
+from . import project_tags
+from . import supervisor
+from . import pending_service
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
 from . import employee
 from . import asignar_avances_project_wizard
 from . import hr_employee
@@ -20,7 +33,18 @@ from . import control_planta
 from . import dashboard_sale_order
 from . import product_template
 from . import project_task_type
+<<<<<<< HEAD
 from . import dashboard_project
 from . import dashboard_task
 from . import wizard_rechazado_task
 from . import project_profitability_report
+=======
+from . import purchase_order
+from . import dashboard_project
+from . import dashboard_task
+from . import hr_expense
+from . import wizard_rechazado_task
+from . import stock
+from . import project_profitability_report
+from . import project_control_board
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)

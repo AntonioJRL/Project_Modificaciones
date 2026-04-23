@@ -6,6 +6,7 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
+<<<<<<< HEAD
 
 class ProjectSubUpdate(models.Model):
     """Modelo para gestionar avances físicos y operativos de tareas en proyectos.
@@ -22,10 +23,20 @@ class ProjectSubUpdate(models.Model):
     _inherit = ['mail.thread', 'mail.activity.mixin']
 
     # ========== CAMPOS DE ESTADO Y FACTURACIÓN ==========
+=======
+class ProjectSubUpdate(models.Model):
+    _name = 'project.sub.update'
+    _description = 'Avances fisicos y operativos'
+    _order = 'date desc'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
+
+    # Integracion de Campos que vienen de Project Modificaciones (project sub update)
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     state = fields.Selection([
         ('no_fact', 'No facturado'),
         ('fact', 'Facturado'),
         ('inc', 'Incobrable'),
+<<<<<<< HEAD
     ],
         string='Estado de Facturación',
         copy=False,
@@ -33,13 +44,22 @@ class ProjectSubUpdate(models.Model):
         tracking=True,
         help="Estado de facturación del avance: No facturado, Facturado o Incobrable."
     )
+=======
+    ], string= 'Estatus Factura', copy=False, default='no_fact', tracking=True)
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
 
     incidencia = fields.Many2one(
         'sale.order.incidencia',
         string="Incidencia",
+<<<<<<< HEAD
         related='sale_order_id.incidencia',
         help="Incidencia asociada a la orden de venta relacionada."
     )
+=======
+        related='sale_order_id.incidencia'
+    )
+    ####################################################################
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
 
     # Campo para el nombre que se mostrara en la lista de busqueda
     display_name = fields.Char(
@@ -70,8 +90,12 @@ class ProjectSubUpdate(models.Model):
 
         return self._search(domain + args, limit=limit, access_rights_uid=name_get_uid, order=order)
 
+<<<<<<< HEAD
     # ========== ESTADO DEL AVANCE ==========
     # Gestiona el flujo de estados del avance: Borrador → Confirmado → Asignado
+=======
+    # Campo para manejo de los estados del avance.
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     avances_state = fields.Selection(
         [
             ("draft", "Borrador"),
@@ -84,7 +108,10 @@ class ProjectSubUpdate(models.Model):
         tracking=True,
         compute="_compute_avances_estados",
         store=True,
+<<<<<<< HEAD
         help="Estado del flujo de trabajo del avance. Borrador: recién creado. Confirmado: validado manualmente. Asignado: vinculado a proyecto/tarea/venta."
+=======
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     )
 
     @api.depends("sale_order_id", "project_id", "task_id")
@@ -117,7 +144,10 @@ class ProjectSubUpdate(models.Model):
                     record.avances_state = "draft"
 
     # Método opcional para confirmar utilizando un button desde la vista
+<<<<<<< HEAD
 
+=======
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     def action_confirmado_avances(self):
         for record in self:
             if record.avances_state == "draft":
@@ -170,8 +200,13 @@ class ProjectSubUpdate(models.Model):
                     _("El avance solo puede ser confirmado desde el estado 'Borrador'.")
                 )
 
+<<<<<<< HEAD
     # Método para las validaciones
 
+=======
+
+    # Método para las validaciones
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     def _validate_required_fields(self):
         """Validación que se ejecuta al confirmar el avance"""
         required_fields = {
@@ -203,13 +238,17 @@ class ProjectSubUpdate(models.Model):
                 _("El avance de unidades no puede ser un valor negativo.")
             )
 
+<<<<<<< HEAD
         # === VALIDACION DEL RANGO DE HORAS REPORTADAS (MANUAL) ===
+=======
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
         # Validación de lógica de horas (Funciona para Datetime y Float)
         if self.hora_inicio and self.hora_termino:
             if self.hora_termino <= self.hora_inicio:
                 raise ValidationError(
                     _("La hora de término debe ser posterior a la hora de inicio.")
                 )
+<<<<<<< HEAD
                 # raise ValidationError(
                 #     _("La hora de término no puede ser igual a la hora de inicio.")
                 # )
@@ -226,6 +265,8 @@ class ProjectSubUpdate(models.Model):
                     raise ValidationError(
                         _("La hora de término debe ser posterior a la hora de inicio.")
                     )
+=======
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
 
     # Método opcional para revertir a borrador utilizando un button desde la vista
     def action_revert_avances_to_draft(self):
@@ -254,6 +295,7 @@ class ProjectSubUpdate(models.Model):
     def create(self, vals_list):
         now = fields.Datetime.context_timestamp(self, fields.Datetime.now())
         date_str = now.strftime("%y%m%d%H%M%S")
+<<<<<<< HEAD
         for i, vals in enumerate(vals_list):
             if vals.get("name", "Nuevo") == "Nuevo":
                 # Agregamos un consecutivo al final para diferenciar registros creados en el mismo batch
@@ -269,6 +311,16 @@ class ProjectSubUpdate(models.Model):
             if record.task_id:
                 record.task_id._update_completion_state_side_effects()
 
+=======
+        for vals in vals_list:
+            if vals.get("name", "Nuevo") == "Nuevo":
+                vals["name"] = f"{date_str}"  # vals["name"] = f"AV/{date_str}"
+
+        records = super().create(vals_list)
+        # Llama a la lógica de creación de tareas después de crear los registros
+        records._try_create_preliminary_task()
+
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
         return records
 
     # Se ejecuta cada vez que se actualiza un registro.
@@ -277,7 +329,10 @@ class ProjectSubUpdate(models.Model):
         res = super().write(vals)
         # Después de guardar, intenta crear la tarea PEND por si se acaban de rellenar los campos 'producto' o 'ct'.
         self._try_create_preliminary_task()
+<<<<<<< HEAD
 
+=======
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
         return res
 
     def _try_create_preliminary_task(self):
@@ -418,8 +473,12 @@ class ProjectSubUpdate(models.Model):
 
         """
         # 3. Migración (account.analytic.line) - Hojas de Horas
+<<<<<<< HEAD
         timesheets_to_migrate = self.env['account.analytic.line'].search(
             [('task_id', '=', old_task_id)])
+=======
+        timesheets_to_migrate = self.env['account.analytic.line'].search([('task_id', '=', old_task_id)])
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
         if timesheets_to_migrate:
             # Necesitamos obtener el project_id de la nueva tarea para asignarlo también
             new_task = self.env['project.task'].browse(new_task_id)
@@ -430,10 +489,16 @@ class ProjectSubUpdate(models.Model):
             _logger.info(
                 f"Migrado: {len(timesheets_to_migrate)} timesheets from Task ID {old_task_id} to Task ID {new_task_id}.")
         """
+<<<<<<< HEAD
 
         # 4. Migración - Compensaciones (Hojas de Horas)
         compensations_to_migrate = self.env['compensation.line'].search(
             [('task_id', '=', old_task_id)])
+=======
+        """
+        # 4. Migración - Compensaciones (Hojas de Horas)
+        compensations_to_migrate = self.env['compensation.line'].search([('task_id', '=', old_task_id)])
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
         if compensations_to_migrate:
             # Necesitamos obtener el project_id de la nueva tarea para asignarlo también
             new_task = self.env['project.task'].browse(new_task_id)
@@ -443,6 +508,10 @@ class ProjectSubUpdate(models.Model):
             })
             _logger.info(
                 f"Migrado: {len(compensations_to_migrate)} compensations from Task ID {old_task_id} to Task ID {new_task_id}.")
+<<<<<<< HEAD
+=======
+        """
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
 
     # Campo para saber quien creo el avance.
     created_by = fields.Many2one(
@@ -487,7 +556,11 @@ class ProjectSubUpdate(models.Model):
         help="Indica si el avance puede ser transferido a un proyecto con orden de venta",
     )
 
+<<<<<<< HEAD
     @api.depends("avances_state", "is_avance_preliminar", "project_id", "project_id.name")
+=======
+    @api.depends("avances_state", "is_avance_preliminar", "project_id")
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     def _compute_avances_transferible(self):
         for record in self:
             record.is_transferible = (
@@ -513,13 +586,18 @@ class ProjectSubUpdate(models.Model):
         "sale.order.line",
         string="Línea de Venta",
         related="task_id.sale_line_id",
+<<<<<<< HEAD
         store=False,
         readonly=True,
+=======
+        store=True,
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     )
 
     partida_linea = fields.Char(
         related="sale_order_line_id.partida", string="Partida")
 
+<<<<<<< HEAD
     # ========== RELACIONES PRINCIPALES: VENTA, PROYECTO Y TAREA ==========
 
     sale_order_id = fields.Many2one(
@@ -536,13 +614,48 @@ class ProjectSubUpdate(models.Model):
         help="Especialidades/tags asociadas a la orden de venta.",
     )
 
+=======
+    ############################################################
+    # SECCION PRINCIPAL DEL FORMATO DEL AVANCE: DATOS INTERNOS #
+    ############################################################
+
+    # Campo que hacer referencia con la orden de venta relacionada al proyecto.
+    sale_order_id = fields.Many2one(
+        "sale.order",
+        string="Orden De Venta",
+        related="task_id.sale_order_id",  # project_id.reinvoiced_sale_order_id
+        help="Orden De Venta Relacionada Al Trabajo",
+        tracking=True,
+        store=True,
+    )
+    # Campo que hace referencia a las especialidades de la orden de venta.
+    especialidad = fields.Many2many(
+        "crm.tag",
+        string="Especialidad",
+        compute="_compute_especialidad",
+        store=True,
+        readonly=False,
+    )
+    
+    @api.depends('sale_order_id.tag_ids')
+    def _compute_especialidad(self):
+        for record in self:
+            record.especialidad = record.sale_order_id.tag_ids
+
+    # Campo para mostrar a que proyecto se encuentra enlazado el avance.
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     project_id = fields.Many2one(
         "project.project",
         string="Proyecto",
         domain="[('is_proyecto_obra', '=', True)]",
+<<<<<<< HEAD
         ondelete='set null',
         tracking=True,
         help="Proyecto al cual está asignado este avance. Solo se muestran proyectos de obra.",
+=======
+        help="Proyecto a cual el avance esta asignado.",
+        tracking=True,
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     )
 
     # Método para rellenar el campo project_id en base a la actualización.
@@ -606,10 +719,16 @@ class ProjectSubUpdate(models.Model):
     task_id = fields.Many2one(
         "project.task",
         string="Tarea",
+<<<<<<< HEAD
         ondelete='set null',
         help="Tarea del proyecto a la cual está relacionado este avance.",
         tracking=True,
         domain="[('project_id', '=', project_id), ('state', 'not in', ['1_canceled']), ('approval_state', 'in',['draft','approved'])]",
+=======
+        help="Tarea Del Proyecto (Aqui Vera La Tarea En La Cual El Avance Estara Relacionado)",
+        tracking=True,
+        domain="[('project_id', '=', project_id), ('state', 'not in', ['1_canceled', '1_done']), ('approval_state', 'in',['draft','approved'])]",
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     )
 
     # Campo visualizar el cliente.
@@ -622,16 +741,27 @@ class ProjectSubUpdate(models.Model):
         tracking=True,
         store=True,
     )
+<<<<<<< HEAD
 
+=======
+    # Método para obtener el cliente de manera automatica.
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     @api.depends('sale_order_id.partner_id', 'task_id.partner_id')
     def _cliente_avance(self):
         for record in self:
             # Logica de cascada
+<<<<<<< HEAD
             opcion_1 = record.sale_order_id.partner_id
             opcion_2 = record.task_id.partner_id
 
             record.cliente_project = opcion_1 or opcion_2
 
+=======
+            opcion_1 = record.sale_order_id.partner_id # Lo obtiene directamente de la orden de venta.
+            opcion_2 = record.task_id.partner_id # Lo obtiene directamnete de la tarea sirve para pendientes.
+
+            record.cliente_project = opcion_1 or opcion_2
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     # Notas
     notas = fields.Char(
         string="Notas",
@@ -715,7 +845,11 @@ class ProjectSubUpdate(models.Model):
     )
 
     # Metodo para sacar el cliente de ct y asignarlo al campo cliente.
+<<<<<<< HEAD
     @api.depends("ct", "ct.cliente")
+=======
+    @api.depends("ct")
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     def _compute_cliente(self):
         for record in self:
             if record.ct and record.ct.cliente and record.ct.cliente.exists():
@@ -743,7 +877,11 @@ class ProjectSubUpdate(models.Model):
                         # Dominio para Supervisor: Se usa el campo 'cliente' en el modelo supervisor.area
                         supervisor_domain_list = [
                             ("cliente", "=", cliente_id),
+<<<<<<< HEAD
                             # ("tipo_contacto", "=", "supervisor"),
+=======
+                            #("tipo_contacto", "=", "supervisor"),
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                         ]
 
                         planta_domain_str = str(planta_domain_list)
@@ -761,13 +899,18 @@ class ProjectSubUpdate(models.Model):
 
             except Exception as e:
                 # Si hay cualquier error, usar dominio vacío para evitar crashes
+<<<<<<< HEAD
                 _logger.warning(
                     f"Error calculando dominios para record {record.id}: {e}")
+=======
+                _logger.warning(f"Error calculando dominios para record {record.id}: {e}")
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                 record.planta_domain = str([("id", "=", False)])
                 record.supervisor_domain = str([("id", "=", False)])
 
             # Limpieza de campos si no coinciden
             # CORREGIDO: Verificación segura de existencia
+<<<<<<< HEAD
             cliente_ct_id = record.ct.cliente.id if (
                 record.ct and record.ct.cliente and record.ct.cliente.exists()) else False
 
@@ -776,12 +919,22 @@ class ProjectSubUpdate(models.Model):
                 # Si no existe el cliente en CT o la planta no corresponde, limpiar
                 if not cliente_ct_id or (record.planta.cliente and record.planta.cliente.id != cliente_ct_id):
                     record.planta = False
+=======
+            cliente_ct_id = record.ct.cliente.id if (record.ct and record.ct.cliente and record.ct.cliente.exists()) else False
+            
+            # Chequeo Planta
+            if record.planta:
+                 # Si no existe el cliente en CT o la planta no corresponde, limpiar
+                 if not cliente_ct_id or (record.planta.cliente and record.planta.cliente.id != cliente_ct_id):
+                      record.planta = False
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
 
             # Validación correcta para el supervisor
             # CORREGIDO: Verificación segura de existencia
             if record.supervisorplanta:
                 # Si no tenemos cliente valido, o el supervisor no tiene padre valido, o no coinciden
                 if not cliente_ct_id:
+<<<<<<< HEAD
                     record.supervisorplanta = False
                 elif not record.supervisorplanta.cliente or not record.supervisorplanta.cliente.exists():
                     # El supervisor tiene un padre borrado o no tiene padre
@@ -789,6 +942,15 @@ class ProjectSubUpdate(models.Model):
                 elif record.supervisorplanta.cliente.id != cliente_ct_id:
                     # El padre existe pero no es el cliente actual
                     record.supervisorplanta = False
+=======
+                     record.supervisorplanta = False
+                elif not record.supervisorplanta.cliente or not record.supervisorplanta.cliente.exists():
+                     # El supervisor tiene un padre borrado o no tiene padre
+                     record.supervisorplanta = False
+                elif record.supervisorplanta.cliente.id != cliente_ct_id:
+                     # El padre existe pero no es el cliente actual
+                     record.supervisorplanta = False
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
 
     # Campo para ?.
     or_rfq = fields.Char(
@@ -867,8 +1029,40 @@ class ProjectSubUpdate(models.Model):
         tracking=True,
     )
 
+<<<<<<< HEAD
     sale_current = fields.Float(
         string="Avance Del Subtotal", compute="_sale_current", store=False
+=======
+    ############################################################
+    #                      AVANCES ACTUAL                      #
+    ############################################################
+    # Avance Actual
+    unit_progress = fields.Float(string="Avance de Unidades", default=0.00)
+    actual_progress_percentage = fields.Float(
+        compute="_actual_progress_percentage", string="Avance Porcentual", default=0.00
+    )
+    virtual_quant_progress = fields.Float(
+        string="Unidades Entregadas (virtual)",
+        compute="_virtual_quant_progress",
+        store=True,
+        default=0.0,
+    )
+    missing_quant = fields.Float(
+        string="Unidades Faltantes", compute="_missing_quant")
+
+    # Avance del Servicio
+    # CHANGE: quant_total now computed to support fallback to piezas_pendientes
+    quant_total = fields.Float(
+        string="Unidades a Entregar",
+        compute="_compute_quant_total",
+        store=True
+    )
+    sale_current = fields.Float(
+        string="Avance Del Subtotal", compute="_sale_current", store=True
+    )
+    virtual_total_progress = fields.Integer(
+        string="Progreso Total (virtual)", compute="_virtual_total_progress", default=0
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     )
 
     # Campo para manejar el costo del avance antes de ser asignado a un proyecto.
@@ -881,21 +1075,31 @@ class ProjectSubUpdate(models.Model):
     )
 
     # Metodo para calcular el valor del avance antes de ser asignado a un proyecto/orden de venta
+<<<<<<< HEAD
     @api.depends("pending_service_line_id.price_unit", "unit_progress", "task_id", "producto")
+=======
+    @api.depends("pending_service_line_id.price_unit", "unit_progress", "task_id")
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     def compute_costo_avance(self):
         for record in self:
             price = 0.0
             # 1. Si ya tiene linea asignada, usar su precio
             if record.pending_service_line_id:
                 price = record.pending_service_line_id.price_unit
+<<<<<<< HEAD
 
             # 2. Si no, buscar la linea por medio de la tarea
             if price == 0.0 and record.task_id:
+=======
+            # 2. Si no, buscar la linea por medio de la tarea
+            elif record.task_id:
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                 line = self.env['pending.service.line'].search([
                     ('task_id', '=', record.task_id.id)
                 ], limit=1)
                 if line:
                     price = line.price_unit
+<<<<<<< HEAD
 
             # 3. Si sigue siendo 0 (o no entró a los anteriores), usar el precio del producto unitario
             if price == 0.0 and record.producto:
@@ -903,6 +1107,13 @@ class ProjectSubUpdate(models.Model):
 
             record.costo_avance = price * record.unit_progress
 
+=======
+                    # Opcional: Auto-vincular para el futuro
+                    # record.pending_service_line_id = line.id
+
+            record.costo_avance = price * record.unit_progress
+            
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     currency_id = fields.Many2one(
         "res.currency",
         string="Moneda",
@@ -915,7 +1126,11 @@ class ProjectSubUpdate(models.Model):
     costo_avance_formateado = fields.Char(
         compute="_compute_costo_formateado",
         string="Costo Del Avance Formateado",
+<<<<<<< HEAD
         store=False,
+=======
+        store=True,
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     )
 
     # Metodo para el formateado del campo costo avance
@@ -947,6 +1162,7 @@ class ProjectSubUpdate(models.Model):
         domain="[('state', '=', 'posted'), ('move_type', '=', 'out_invoice')]",
     )
     sale_total = fields.Float(
+<<<<<<< HEAD
         string="Subtotal De La Venta", compute="_sale_total", store=False
     )
     sale_actual = fields.Float(
@@ -954,6 +1170,15 @@ class ProjectSubUpdate(models.Model):
     )
     sale_missing = fields.Float(
         string="Subtotal Faltante", compute="_sale_missing", store=False
+=======
+        string="Subtotal De La Venta", compute="_sale_total", store=True
+    )
+    sale_actual = fields.Float(
+        string="Subtotal Entregado", compute="_sale_actual", store=True
+    )
+    sale_missing = fields.Float(
+        string="Subtotal Faltante", compute="_sale_missing", store=True
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     )
 
     proj = fields.Many2one(related="update_id.project_id")
@@ -966,6 +1191,7 @@ class ProjectSubUpdate(models.Model):
         related="task_id.progress",
         string="Current Progress",
     )
+<<<<<<< HEAD
 
     # Text
     sale_current_text = fields.Char(
@@ -979,6 +1205,32 @@ class ProjectSubUpdate(models.Model):
     )
     sale_missing_text = fields.Char(
         string="Subtotal Faltante (pesos)", compute="_sale_missing_text", store=False
+=======
+    quant_progress = fields.Float(
+        string="Unidades Entregadas", compute="_quant_progress", store=True, default=0.0
+    )
+    actual_progress = fields.Float(
+        compute="_actual_progress", string="Avance", default=0.00, store=True
+    )
+    total_progress = fields.Integer(
+        string="Progreso Total", compute="_total_progress", store=True, default=0
+    )
+    total_progress_percentage = fields.Float(
+        compute="_total_progress_percentage")
+
+    # Text
+    sale_current_text = fields.Char(
+        string="Avance Del subtotal (pesos)", compute="_sale_current_text", store=True
+    )
+    sale_actual_text = fields.Char(
+        string="Subtotal Entregado (pesos)", compute="_sale_actual_text", store=True
+    )
+    sale_total_text = fields.Char(
+        string="Subtotal De La Venta (pesos)", compute="_sale_total_text", store=True
+    )
+    sale_missing_text = fields.Char(
+        string="Subtotal Faltante (pesos)", compute="_sale_missing_text", store=True
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     )
 
     task_name = fields.Char(related="task_id.name",
@@ -989,7 +1241,11 @@ class ProjectSubUpdate(models.Model):
         related="update_id.status", string="Estado Tarea")
 
     invoiced = fields.Float(
+<<<<<<< HEAD
         string="Facturado", related="task_id.invoiced", store=False)
+=======
+        string="Facturado", related="task_id.invoiced", store=True)
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     is_invoiced = fields.Boolean(
         string="¿Avance Facturado?",
         default=False,
@@ -1024,6 +1280,7 @@ class ProjectSubUpdate(models.Model):
                 [("id", "=", u.projid)], limit=1
             )
 
+<<<<<<< HEAD
     def write(self, vals):
         res = super(ProjectSubUpdate, self).write(vals)
         if 'unit_progress' in vals or 'task_id' in vals:
@@ -1039,6 +1296,8 @@ class ProjectSubUpdate(models.Model):
             task._update_completion_state_side_effects()
         return res
 
+=======
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     @api.model
     def _chosen_tasks(self):
         for u in self:
@@ -1052,6 +1311,118 @@ class ProjectSubUpdate(models.Model):
                 chosen = chosen + str(i) + " "
             return chosen.split()
 
+<<<<<<< HEAD
+=======
+    @api.depends("unit_progress", "task_id")
+    def _quant_progress(self):
+        for u in self:
+            progress = u.task_id.quant_progress
+            u.quant_progress = progress
+
+    @api.depends("task_id.total_pieces", "task_id.piezas_pendientes")
+    def _compute_quant_total(self):
+        """
+        Calcula el total de unidades a entregar.
+        Si hay una línea de venta asociada (total_pieces > 0), usa esa.
+        Si no, usa piezas_pendientes como fallback idealmente para tareas preliminares.
+        """
+        for u in self:
+            # Si tiene pieces por sale order line, prioridad 1
+            if u.task_id.total_pieces:
+                 u.quant_total = u.task_id.total_pieces
+            # Si no, usa piezas_pendientes (creado para tareas sin SO aun)
+            elif u.task_id.piezas_pendientes:
+                 u.quant_total = u.task_id.piezas_pendientes
+            else:
+                 u.quant_total = 0.0
+
+    @api.depends("unit_progress", "quant_total")
+    def _actual_progress(self):
+        for u in self:
+            if u.quant_total > 0:
+                progress = (u.unit_progress / u.quant_total) * 100
+            else:
+                progress = 0
+            u.actual_progress = progress
+
+    @api.depends("unit_progress", "task_id", "quant_total", "virtual_quant_progress")
+    def _total_progress(self):
+        for u in self:
+            if u.quant_total > 0:
+                progress = (u.virtual_quant_progress / u.quant_total) * 100
+            else:
+                progress = 0
+            u.total_progress = int(progress)
+
+    @api.depends("unit_progress", "task_id")
+    def _actual_progress_percentage(self):
+        for u in self:
+            u.actual_progress_percentage = u.actual_progress / 100
+
+    @api.depends("unit_progress", "task_id")
+    def _total_progress_percentage(self):
+        for u in self:
+            u.total_progress_percentage = u.virtual_total_progress / 100
+
+    @api.depends("unit_progress", "task_id")
+    def _virtual_quant_progress(self):
+        for u in self:
+            # Ensure we have valid integers for search to avoid NewId errors
+            project_id = u.project_id.id if isinstance(
+                u.project_id.id, int) else False
+            task_id = u.task_id.id if isinstance(u.task_id.id, int) else False
+
+            if not project_id or not task_id:
+                # If project or task are not yet saved (NewId), we assume no other saved advances exist
+                u.virtual_quant_progress = u.unit_progress
+                continue
+
+            if not u.id or not isinstance(u.id, int):
+                if not u._origin.id or not isinstance(u._origin.id, int):
+                    progress = u.task_id.quant_progress + u.unit_progress
+                else:
+                    self_total = (
+                        u.env["project.sub.update"]
+                        .search(
+                            [
+                                ("project_id", "=", project_id),
+                                ("task_id", "=", task_id),
+                                ("id", "<", u._origin.id),
+                            ]
+                        )
+                        .mapped("unit_progress")
+                    )
+                    progress = sum(self_total) + u.unit_progress
+            else:
+                self_total = (
+                    u.env["project.sub.update"]
+                    .search(
+                        [
+                            ("project_id", "=", project_id),
+                            ("task_id", "=", task_id),
+                            ("id", "<=", u.id),
+                        ]
+                    )
+                    .mapped("unit_progress")
+                )
+                progress = sum(self_total)
+            u.virtual_quant_progress = progress
+
+    @api.depends("unit_progress", "quant_total", "virtual_quant_progress")
+    def _virtual_total_progress(self):
+        for u in self:
+            if u.quant_total > 0:
+                progress = (u.virtual_quant_progress / u.quant_total) * 100
+            else:
+                progress = 0
+            u.virtual_total_progress = int(progress)
+
+    @api.depends("unit_progress", "task_id", "quant_total", "virtual_quant_progress")
+    def _missing_quant(self):
+        for u in self:
+            u.missing_quant = u.quant_total - u.virtual_quant_progress
+
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     def _get_price_for_calculation(self):
         """Este metodo ayuda para obtener el valor unitario del producto en diferentes entornos"""
         self.ensure_one()
@@ -1072,6 +1443,7 @@ class ProjectSubUpdate(models.Model):
             price = u._get_price_for_calculation()
             u.sale_current = u.unit_progress * price
 
+<<<<<<< HEAD
     @api.depends("unit_progress", "task_id")
     def _sale_actual(self):
         for u in self:
@@ -1084,11 +1456,34 @@ class ProjectSubUpdate(models.Model):
             u.sale_total = u.task_id.total_pieces * u.task_id.price_unit
 
     @api.depends("unit_progress", "task_id")
+=======
+        return {"type": "ir.actions.client", "tag": "soft_reload"}
+
+
+    @api.depends("virtual_quant_progress", "task_id", "precio_unidad")
+    def _sale_actual(self):
+        for u in self:
+            price = u._get_price_for_calculation()
+            u.sale_actual = u.virtual_quant_progress * price
+
+    # Campo A Modificar
+    @api.depends("quant_total", "task_id", "precio_unidad")
+    def _sale_total(self):
+        for u in self:
+            price = u._get_price_for_calculation()
+            u.sale_total = u.quant_total * price
+
+    @api.depends("sale_total", "sale_actual")
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     def _sale_missing(self):
         for u in self:
             u.sale_missing = u.sale_total - u.sale_actual
 
+<<<<<<< HEAD
     @api.depends("unit_progress", "task_id")
+=======
+    @api.depends("sale_current")
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     def _sale_current_text(self):
         for u in self:
             sale = "%.2f" % u.sale_current
@@ -1101,7 +1496,11 @@ class ProjectSubUpdate(models.Model):
                 )
             u.sale_current_text = "$" + sale
 
+<<<<<<< HEAD
     @api.depends("unit_progress", "task_id")
+=======
+    @api.depends("sale_actual")
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     def _sale_actual_text(self):
         for u in self:
             sale = "%.2f" % u.sale_actual
@@ -1114,7 +1513,11 @@ class ProjectSubUpdate(models.Model):
                 )
             u.sale_actual_text = "$" + sale
 
+<<<<<<< HEAD
     @api.depends("unit_progress", "task_id")
+=======
+    @api.depends("sale_total")
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     def _sale_total_text(self):
         for u in self:
             sale = "% .2f" % u.sale_total
@@ -1127,7 +1530,11 @@ class ProjectSubUpdate(models.Model):
                 )
             u.sale_total_text = "$" + sale
 
+<<<<<<< HEAD
     @api.depends("unit_progress", "task_id")
+=======
+    @api.depends("sale_missing")
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     def _sale_missing_text(self):
         for u in self:
             sale = "% .2f" % u.sale_missing
@@ -1169,6 +1576,39 @@ class ProjectSubUpdate(models.Model):
         self.domain = domain
 
     # Este metodo de validación fue modificado.
+<<<<<<< HEAD
+=======
+    @api.constrains("quant_progress", "task_id")
+    def _update_units(self):
+        for u in self:
+            if u.task_id and u.task_id.total_pieces > 0:
+                other_sub_updates = self.env["project.sub.update"].search(
+                    [
+                        ("task_id", "=", u.task_id.id),
+                        (
+                            "id",
+                            "!=",
+                            u.id,
+                        ),  # Excluye el registro actual para no doble-contar su valor
+                    ]
+                )
+                sum_of_other_advances = sum(
+                    other_sub_updates.mapped("unit_progress"))
+                # Calcular el nuevo progreso total acumulado para la tarea
+                new_total_task_progress = sum_of_other_advances + u.unit_progress
+                # Realizar la validación
+                if new_total_task_progress > u.task_id.total_pieces:
+                    raise ValidationError(
+                        "El progreso acumulado de la tarea sobrepasa el número de unidades pedidas."
+                    )
+
+    @api.constrains("unit_progress")
+    def _check_units(self):
+        for u in self:
+            if u.task_id:
+                if u.unit_progress < 0:
+                    raise ValidationError("Cantidad inválida de unidades")
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
 
     """
     @api.constrains("item_ids")
@@ -1329,6 +1769,7 @@ class ProjectSubUpdate(models.Model):
             self.responsible_id = False
             self.supervisorplanta = False
 
+<<<<<<< HEAD
     # ==============================================================================================
     #                          LOGICA DE PROGRESO Y PONDERACION
     # ==============================================================================================
@@ -1604,14 +2045,22 @@ class ProjectSubUpdate(models.Model):
     #                          FIN LOGICA DE PROGRESO Y PONDERACION
     # ==============================================================================================
 
+=======
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     # -------------------------------------------------------------------------
     # CAMPOS LEGACY DEL MODELO ORIGINAL (PROJECT_SUB_UPDATE)
     # Se mantienen al final para evitar errores de campos faltantes en base de datos.
     # -------------------------------------------------------------------------
+<<<<<<< HEAD
 
     analitica = fields.Many2one(
         string="Analitica", related='project_id.analytic_account_id')
 
+=======
+    
+    analitica = fields.Many2one(string="Analitica", related='project_id.analytic_account_id')
+    
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     serv_assig = fields.Selection(
         string='Estatus de servicio',
         selection=[('assig', 'Con OS'), ('no_assig', 'Sin OS')],
@@ -1623,18 +2072,30 @@ class ProjectSubUpdate(models.Model):
     def _compute_serv_assig_computed(self):
         for record in self:
             record.serv_assig = record.sale_order_id.serv_assig
+<<<<<<< HEAD
 
     # Mantenemos este campo para retrocompatibilidad, aunque B usa 'especialidad_trabajo'
     disciplina = fields.Many2one(
         string="Especialidad", related='task_id.disc', store=False)
 
+=======
+            
+    # Mantenemos este campo para retrocompatibilidad, aunque B usa 'especialidad_trabajo'
+    disciplina = fields.Many2one(string="Especialidad", related='task_id.disc', store=True)
+    
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     # Campo legacy de area (texto) por si había datos viejos, aunque B usa 'planta' y 'area_equipo'
     area = fields.Char(string='Area', store=True)
 
     # Campo legacy de licencias (texto) por si había datos viejos, B usa el Many2one 'licencia'
     numlic = fields.Char(string='#Bitacora/Lic.', store=True)
 
+<<<<<<< HEAD
     # 1. Campo computado para contar (y controlar visibilidad del botón)
+=======
+
+    # 1. Campo computado para contar (y controlar visibilidad)
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     pending_service_count = fields.Integer(
         string="Contador Pendientes",
         compute="_compute_pending_service_count"
@@ -1646,7 +2107,11 @@ class ProjectSubUpdate(models.Model):
             # Si hay un ID relacionado es 1, si no es 0
             record.pending_service_count = 1 if record.pending_service_id else 0
 
+<<<<<<< HEAD
     # 2. Acción para abrir el Servicio Pendiente Origen
+=======
+    # 2. Acción al presionar el botón
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     def action_view_pending_service(self):
         self.ensure_one()
         if not self.pending_service_id:
@@ -1659,4 +2124,8 @@ class ProjectSubUpdate(models.Model):
             "view_mode": "form",
             "res_id": self.pending_service_id.id,
             "target": "current",
+<<<<<<< HEAD
         }
+=======
+        }
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)

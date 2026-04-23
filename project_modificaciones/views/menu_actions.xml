@@ -12,9 +12,14 @@
         sequence="1"
     />
 
+<<<<<<< HEAD
     <!-- CONTROL DE OBRA CONTROL DE OBRA CONTROL DE OBRA CONTROL DE OBRA CONTROL DE OBRA CONTROL DE
     OBRA CONTROL DE OBRA -->
     <menuitem
+=======
+    <!-- CONTROL DE OBRA CONTROL DE OBRA CONTROL DE OBRA CONTROL DE OBRA CONTROL DE OBRA CONTROL DE OBRA CONTROL DE OBRA -->
+    <menuitem 
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
         id="menu_control_obra_root"
         name="Control de Obra"
         sequence="10"
@@ -23,6 +28,7 @@
     </menuitem>
 
     <menuitem
+<<<<<<< HEAD
         name="Proyectos"
         id="menu_proyectos_control_obra"
         parent="menu_control_obra_root"
@@ -31,6 +37,16 @@
 
     <menuitem
         name="Proyectos"
+=======
+        name="Agrupadores"
+        id="menu_proyectos_control_obra"
+        parent="menu_control_obra_root"
+        sequence="2"
+    />
+
+    <menuitem
+        name="Agrupadores"
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
         id="menu_proyectos"
         action="open_projects"
         parent="menu_proyectos_control_obra"
@@ -42,14 +58,22 @@
         id="menu_tareas_control_obra"
         action="open_task"
         parent="menu_control_obra_root"
+<<<<<<< HEAD
         sequence="2"
+=======
+        sequence="3"
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     />
 
     <menuitem
         name="Ventas"
         id="menu_ventas_control_obra"
         parent="menu_control_obra_root"
+<<<<<<< HEAD
         sequence="3"
+=======
+        sequence="4"
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     />
 
 
@@ -58,7 +82,11 @@
         name="Órdenes de Venta"
         parent="menu_ventas_control_obra"
         action="action_control_obra_sales_orders"
+<<<<<<< HEAD
         sequence="1"
+=======
+        sequence="1" 
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     />
 
     <menuitem
@@ -66,7 +94,11 @@
         name="Cotizaciones"
         parent="menu_ventas_control_obra"
         action="action_control_obra_quotations"
+<<<<<<< HEAD
         sequence="2"
+=======
+        sequence="2" 
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     />
 
     <menuitem
@@ -74,14 +106,22 @@
         name="Productos"
         parent="menu_ventas_control_obra"
         action="action_control_obra_products"
+<<<<<<< HEAD
         sequence="3"
+=======
+        sequence="4" 
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     />
 
     <menuitem
         name="Control"
         id="menu_control_obra"
         parent="menu_control_obra_root"
+<<<<<<< HEAD
         sequence="4"
+=======
+        sequence="5"
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     />
 
     <menuitem
@@ -142,6 +182,7 @@
         id="menu_avances_control_obra"
         parent="menu_control_obra_root"
         action="project_sub_update_action"
+<<<<<<< HEAD
         sequence="5"
     />
 
@@ -162,6 +203,11 @@
     />
     Fin de Menú Reclassification-->
 
+=======
+        sequence="6"
+    />
+
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     <!-- Inicio de Menú Reportes -->
     <menuitem
         name="Dashboard de Proyectos"
@@ -170,6 +216,17 @@
         action="action_project_profitability_report"
         sequence="2"
     />
+<<<<<<< HEAD
     <!-- Fin de Menú Reportes -->
+=======
+
+    <menuitem 
+        name="Gestión Proyectos"
+        id="menu_project_control_board"
+        parent="menu_control_obra_root"
+        action="action_project_control_board"
+        sequence="1"
+    />
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
 
 </odoo>

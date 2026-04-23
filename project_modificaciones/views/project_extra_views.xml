@@ -9,6 +9,7 @@
                 <field name="state" widget="badge" />
                 <field name="team_id" />
             </xpath>
+<<<<<<< HEAD
             <!-- Ocultar botón estándar de Ventas (sale_project) si no hay cliente -->
             <xpath expr="//div[@name='button_box']/button[@name='action_view_sos']"
                 position="attributes">
@@ -26,6 +27,9 @@
                         string="Órdenes de Ventas" />
                 </button>
 
+=======
+            <xpath expr="//sheet//div" position="inside">
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                 <button class="oe_stat_button" type="object" name="action_view_avances"
                     icon="fa-file-text" invisible="not sub_update_ids">
                     <field name="sub_update_ids" widget="statinfo" string="Avances" />
@@ -139,7 +143,11 @@
     </record>
 
     <record id="open_projects" model="ir.actions.act_window">
+<<<<<<< HEAD
         <field name="name">Proyectos de Obra</field>
+=======
+        <field name="name">Agrupadores</field>
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
         <field name="res_model">project.project</field>
         <field name="view_mode">tree,form,kanban</field>
         <field name="domain">[('is_proyecto_obra', '=', True)]</field>
@@ -148,7 +156,10 @@
             'default_is_proyecto_obra': True,
             'default_allow_billable': True,
             'default_privacy_visibility': 'employees',
+<<<<<<< HEAD
             'default_use_documents': False,
+=======
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
             }" />
         <field name="view_id" ref="view_project_kanban_control_obra" />
         <field name="groups_id" eval="[(4, ref('project.group_project_stages'))]" />

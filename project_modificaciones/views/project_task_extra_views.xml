@@ -9,16 +9,23 @@
             <xpath expr="//sheet//div" position="inside">
                 <button class="oe_stat_button" type="object" name="action_view_avances"
                     icon="fa-file-text" title="Ver Avances">
+<<<<<<< HEAD
                     <field name="updates_count" string="Avances" widget="statinfo" />
+=======
+                    <field name="sub_update_ids" string="Avances" widget="statinfo" />
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                 </button>
             </xpath>
 
             <xpath expr="//sheet//field[@name='tag_ids']" position="after">
                 <field name="partida_relacionada" />
             </xpath>
+<<<<<<< HEAD
             <xpath expr="//div[@id='date_deadline_and_recurring_task']" position="after">
                 <field name="tarea_padre" invisible="[('parent_id', '=', False)]" />
             </xpath>
+=======
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
 
             <xpath expr="//field[@name='project_id'][@widget='project']" position="before">
                 <field name="project_domain_string" invisible="1" />
@@ -49,11 +56,26 @@
                     type="object" class="oe_highlight"
                     invisible="not can_user_approve or approval_state in ['to_approve', 'draft', 'approved'] or is_control_obra == False" />
 
+<<<<<<< HEAD
+=======
+                <button name="action_recompute_progress_metrics" string="Recalcular Progreso"
+                    type="object" class="oe_highlight" />
+
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                 <field name="approval_state" widget="statusbar"
                     statusbar_visible="draft,to_approve,approved"
                     invisible="is_control_obra == False" />
             </xpath>
 
+<<<<<<< HEAD
+=======
+            <xpath
+                expr="//form/sheet/group/group/div[@id='date_deadline_and_recurring_task']/field[@name='date_deadline']"
+                position="attributes">
+                <attribute name="required">id == False</attribute>
+            </xpath>
+
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
             <xpath expr="//field[@name='name']" position="attributes">
                 <attribute name="readonly">approval_state not in ['draft', 'rejected']</attribute>
             </xpath>
@@ -64,6 +86,7 @@
             <!--###################################################################################-->
 
             <xpath expr="//group" position="after">
+<<<<<<< HEAD
                 <separator string="Datos Generales" name="separador_general" />
                 <group name="datos_general">
                     <group>
@@ -99,6 +122,8 @@
                     </group>
                 </group>
 
+=======
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                 <separator string="Avance" name="separador_avance" />
                 <group name="Avance">
                     <group>
@@ -121,6 +146,7 @@
                     <field name="last_update_date" />
                 </group>
             </xpath>
+<<<<<<< HEAD
             <!--Parte
             del Progreso Ponderado Vista de Subtareas-->
             <xpath expr="//field[@name='child_ids']/tree/field[@name='name']" position="after">
@@ -132,6 +158,11 @@
             <xpath expr="//page[@name='sub_tasks_page']" position="after">
                 <page name="updates" string="Actualizaciones">
                     <field name="sub_update_ids" readonly="True">
+=======
+            <xpath expr="//page[@name='sub_tasks_page']" position="after">
+                <page name="updates" string="Actualizaciones">
+                    <field name="sub_update_ids" readonly="False">
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                         <form class="control_de_obra_view" string="Avance">
                             <header>
                                 <field name="avances_state" widget="statusbar" readonly="1" />
@@ -369,6 +400,10 @@
                                     </group>
                                     <group>
                                         <field name="om" readonly="avances_state in 'assigned'" />
+<<<<<<< HEAD
+=======
+                                        <field name="numlic" />
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                                         <field name="cot" readonly="avances_state in 'assigned'" />
                                         <field name="avanceparc"
                                             readonly="avances_state in 'assigned'" /> <!--readonly="0"-->
@@ -426,6 +461,7 @@
                 </page>
             </xpath>
 
+<<<<<<< HEAD
             <xpath expr="//page[@name='updates']" position="after">
                 <page name="child_updates" string="Avances de Subtareas"
                     invisible="not child_ids">
@@ -451,6 +487,33 @@
                         </tree>
                     </field>
                 </page>
+=======
+            <xpath expr="//separator[@name='separador_avance']" position="before">
+                <separator string="Datos Generales" name="separador_general" />
+                <group name="datos_general">
+                    <group>
+                        <field name="centro_trabajo"
+                            readonly="approval_state in ['to_approve', 'approved']"
+                            help="Selecciona la ubicación física principal donde se ejecutará el servicio." />
+
+                        <field name="supervisor_interno"
+                            widget="many2one_avatar_user"
+                            readonly="approval_state in ['to_approve', 'approved']" />
+                    </group>
+                    <group>
+                        <field name="planta_trabajo"
+                            help="Indica la planta específica dentro del Centro de Trabajo donde se realizará la actividad."
+                            readonly="approval_state in ['to_approve', 'approved']"
+                        />
+                        <field name="supervisor_cliente" widget="many2one_avatar_user"
+                            help="Persona de contacto (cliente) que supervisará y validará los trabajos en sitio."
+                            readonly="approval_state in ['to_approve', 'approved']"
+                        />
+                        <field name="is_control_obra" widget="boolean_toggle" readonly="1" />
+                        <field name="producto_relacionado" invisible="1" />
+                    </group>
+                </group>
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
             </xpath>
         </field>
     </record>
@@ -496,6 +559,273 @@
         </field>
     </record>
 
+<<<<<<< HEAD
+=======
+    <record id="view_task_tree_control_obra" model="ir.ui.view">
+        <field name="name">project.task.tree.control.obra</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="project.view_task_tree2" />
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="progress" widget="progressbar" optional="show" />
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_task_kanban_control_obra_v3" model="ir.ui.view">
+        <field name="name">project.task.kanban.control.obra.custom.v3</field>
+        <field name="model">project.task</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="kanban_stage" class="o_kanban_view o_kanban_dashboard"
+                quick_create="false">
+                <style>
+                    .o_kanban_group {
+                    min-width: 420px !important;
+                    width: 420px !important;
+                    margin-right: 15px !important;
+                    }
+                    .o_kanban_view {
+                    display: flex !important;
+                    flex-direction: row !important;
+                    overflow-x: auto !important;
+                    }
+                </style>
+
+                <field name="name" />
+                <field name="stage_id" />
+                <field name="state" />
+                <field name="planned_date_begin" />
+                <field name="date_deadline" />
+                <field name="kanban_begin_short" />
+                <field name="kanban_deadline_short" />
+                <field name="days_delayed" />
+                <field name="priority" />
+                <field name="quant_progress" />
+                <field name="total_pieces" />
+                <field name="piezas_pendientes" />
+                <field name="sale_order_id" />
+                <field name="partner_id" />
+                <field name="supervisor_interno" />
+
+                <field name="is_scaffolding" />
+                <field name="kanban_color_obra" />
+                <field name="kanban_stage" />
+                <field name="avance_planeado" />
+                <field name="avance_actual" />
+                <field name="avance_facturado" />
+
+                <templates>
+                    <t t-name="kanban-box">
+                        <div
+                            class="oe_kanban_card oe_kanban_global_click p-0 d-flex flex-column shadow-sm h-100 rounded-3"
+                            style="overflow: hidden !important; margin-bottom: 16px !important;">
+
+                            <div
+                                class="p-2 border-bottom d-flex align-items-center justify-content-between bg-light">
+                                <strong
+                                    class="o_kanban_record_title text-primary fw-bold text-truncate flex-grow-1 me-2"
+                                    style="font-size: 12px;" t-att-title="record.name.value">
+                                    <field name="name" />
+                                </strong>
+                                <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                    <div class="d-flex gap-1 rounded-pill p-1 shadow-sm"
+                                        style="background-color: #343a40 !important;">
+                                        <span
+                                            t-attf-class="rounded-circle d-inline-block #{record.kanban_color_obra.raw_value == 'red' ? 'bg-danger shadow' : 'bg-secondary opacity-25'}"
+                                            style="width: 8px; height: 8px;" />
+                                        <span
+                                            t-attf-class="rounded-circle d-inline-block #{record.kanban_color_obra.raw_value == 'amber' ? 'bg-warning shadow' : 'bg-secondary opacity-25'}"
+                                            style="width: 8px; height: 8px;" />
+                                        <span
+                                            t-attf-class="rounded-circle d-inline-block #{record.kanban_color_obra.raw_value == 'green' ? 'bg-success shadow' : 'bg-secondary opacity-25'}"
+                                            style="width: 8px; height: 8px;" />
+                                    </div>
+                                    <span class="fw-bold text-dark ms-1" style="font-size: 11px;">
+                                        <field name="state" />
+                                    </span>
+                                    <div class="ms-1">
+                                        <t t-if="record.kanban_color_obra.raw_value == 'red'">
+                                            <i class="fa fa-times text-danger fs-6"
+                                                title="Retraso crítico o fecha de entrega vencida." />
+                                        </t>
+                                        <t t-if="record.kanban_color_obra.raw_value == 'amber'">
+                                            <i class="fa fa-exclamation-triangle text-warning fs-6"
+                                                title="Retraso menor al 10%." />
+                                        </t>
+                                        <t t-if="record.kanban_color_obra.raw_value == 'green'">
+                                            <i class="fa fa-check text-success fs-6"
+                                                title="Avance físico real ≥ Avance planeado." />
+                                        </t>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div
+                                class="p-2 border-bottom d-flex align-items-center justify-content-between text-muted text-nowrap"
+                                style="font-size: 10px;">
+                                <div class="d-flex align-items-center gap-1"
+                                    style="flex: 1; justify-content: flex-start;">
+                                    <i class="fa fa-calendar-o" />
+                                    <span>Inicio:</span>
+                                    <b class="text-dark">
+                                        <field name="kanban_begin_short" />
+                                    </b>
+                                </div>
+
+                                <div class="text-center" style="flex: 0 0 auto;">
+                                    <span class="text-black-50">|</span>
+                                </div>
+
+                                <div class="d-flex align-items-center gap-1"
+                                    style="flex: 1; justify-content: flex-end;">
+                                    <span>Fin Plan:</span>
+                                    <b class="text-dark">
+                                        <field name="kanban_deadline_short" />
+                                    </b>
+                                </div>
+                            </div>
+
+                            <div
+                                t-attf-class="px-2 py-1 border-bottom d-flex align-items-center justify-content-between #{record.days_delayed.raw_value > 0 ? 'bg-danger-light' : 'bg-light'}">
+
+                                <div class="text-nowrap d-flex align-items-center gap-1"
+                                    style="flex: 1; justify-content: flex-start; font-size: 10px;">
+                                    <i class="fa fa-calendar-check-o text-muted" />
+                                    <span
+                                        t-attf-class="fw-bold #{record.days_delayed.raw_value > 0 ? 'text-danger' : 'text-dark'}">
+                                        Actual: <field name="kanban_deadline_short" />
+                                    </span>
+                                </div>
+
+                                <div class="text-center" style="flex: 0 0 auto; font-size: 11px;">
+                                    <span style="visibility: hidden;">|</span>
+                                </div>
+
+                                <div class="d-flex align-items-center gap-1"
+                                    style="flex: 1; justify-content: flex-end;">
+                                    <t t-if="record.days_delayed.raw_value > 0">
+                                        <div
+                                            class="badge text-bg-warning border border-warning d-flex align-items-center gap-1 py-1"
+                                            style="font-size: 10px;">
+                                            <i class="fa fa-clock-o" /> <t
+                                                t-esc="record.days_delayed.value" /> días retraso </div>
+                                    </t>
+                                </div>
+
+                            </div>
+
+                            <div class="row g-0 flex-grow-1 border-bottom align-items-stretch">
+                                <div
+                                    class="col-6 p-2 border-end d-flex flex-column justify-content-center gap-2">
+                                    <span class="text-muted" style="font-size: 10px;">Avances:</span>
+
+                                    <div>
+                                        <div class="d-flex justify-content-between mb-1"
+                                            style="font-size: 10px;">
+                                            <span class="text-muted">Planeado:</span>
+                                            <b class="text-dark"><t
+                                                    t-esc="Math.floor(record.avance_planeado.raw_value)" />
+                                                %</b>
+                                        </div>
+                                        <div class="progress" style="height: 5px;">
+                                            <div class="progress-bar bg-info" role="progressbar"
+                                                t-attf-style="width: #{record.avance_planeado.raw_value}%" />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div class="d-flex justify-content-between mb-1"
+                                            style="font-size: 10px;">
+                                            <span class="text-muted">Físico:</span>
+                                            <b class="text-dark"><t
+                                                    t-esc="Math.floor(record.avance_actual.raw_value)" />
+                                                %</b>
+                                        </div>
+                                        <div class="progress" style="height: 5px;">
+                                            <div
+                                                t-attf-class="progress-bar bg-#{record.kanban_color_obra.raw_value == 'red' ? 'danger' : (record.kanban_color_obra.raw_value == 'amber' ? 'warning' : 'success')}"
+                                                role="progressbar"
+                                                t-attf-style="width: #{record.avance_actual.raw_value}%" />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div class="d-flex justify-content-between mb-1"
+                                            style="font-size: 10px;">
+                                            <span class="text-muted">Facturado:</span>
+                                            <b class="text-dark"><t
+                                                    t-esc="Math.floor(record.avance_facturado.raw_value)" />
+                                                %</b>
+                                        </div>
+                                        <div class="progress" style="height: 5px;">
+                                            <div class="progress-bar bg-success" role="progressbar"
+                                                t-attf-style="width: #{record.avance_facturado.raw_value}%" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="col-6 p-2 d-flex flex-column justify-content-between gap-2">
+                                    <div class="d-flex justify-content-between align-items-center"
+                                        style="font-size: 9px;">
+                                        <span class="text-muted">Prioridad:</span>
+                                        <field name="priority" widget="priority" />
+                                    </div>
+
+                                    <div class="text-truncate">
+                                        <span class="text-muted d-block" style="font-size: 9px;">
+                                            Cliente:</span>
+                                        <b class="text-dark text-wrap d-block"
+                                            style="line-height: 1.1; font-size: 9px;"
+                                            t-att-title="record.partner_id.value">
+                                            <field name="partner_id" />
+                                        </b>
+                                    </div>
+
+                                    <div>
+                                        <span class="text-muted d-block" style="font-size: 9px;">
+                                            Supervisor:</span>
+                                        <b class="text-dark text-wrap d-block"
+                                            style="line-height: 1.1; font-size: 9px;">
+                                            <field name="supervisor_interno" />
+                                        </b>
+                                    </div>
+
+                                    <div
+                                        class="d-flex align-items-center justify-content-between mt-auto pt-1 border-top"
+                                        style="font-size: 11px;">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <t
+                                                t-if="record.is_scaffolding and record.is_scaffolding.raw_value">
+                                                <i class="fa fa-building-o text-muted" />
+                                                <span class="text-muted">Armados:</span>
+                                            </t>
+                                            <t t-else="">
+                                                <i class="fa fa-cubes text-muted" />
+                                                <span class="text-muted">Piezas:</span>
+                                            </t>
+                                        </div>
+                                        <b class="text-dark">
+                                            <field name="quant_progress" /> / <t
+                                                t-if="record.sale_order_id.raw_value">
+                                                <field name="total_pieces" />
+                                            </t>
+                                            <t
+                                                t-else="">
+                                                <field name="piezas_pendientes" />
+                                            </t>
+                                        </b>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     <record id="open_task" model="ir.actions.act_window">
         <field name="name">Tareas de Obra</field>
         <field name="res_model">project.task</field>
@@ -507,7 +837,10 @@
         </field>
         <field name="context"
             eval="{
+<<<<<<< HEAD
             'group_by': 'state',
+=======
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
             'create': True,
             'default_is_control_obra': True,
             }" />
@@ -516,7 +849,11 @@
             eval="[
             (5, 0, 0),
             (0, 0, {'view_mode': 'tree', 'view_id': ref('project.view_task_tree2')}),
+<<<<<<< HEAD
             (0, 0, {'view_mode': 'kanban', 'view_id': ref('project_modificaciones.view_task_kanban_control_obra')}),
+=======
+            (0, 0, {'view_mode': 'kanban', 'view_id': ref('project_modificaciones.view_task_kanban_control_obra_v3')}),
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
             (0, 0, {'view_mode': 'form', 'view_id': ref('project.view_task_form2')})
         ]" />
         <field name="help" type="html">

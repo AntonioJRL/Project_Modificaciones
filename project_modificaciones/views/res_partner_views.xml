@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
@@ -14,3 +15,23 @@
         </record>
     </data>
 </odoo>
+=======
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="res_partner_view_form_inherit" model="ir.ui.view">
+            <field name="name">res.partner.view.form</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_form" />
+            <field name="arch" type="xml">
+
+                <xpath expr="//field[@name='vat']" position="after">
+                    <field name="tipo_contacto" widget="radio" options="{'horizontal': true}" />
+                    <field name="cliente_obra" widget="boolean_toggle" />
+                </xpath>
+                
+            </field>
+        </record>
+    </data>
+</odoo>
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)

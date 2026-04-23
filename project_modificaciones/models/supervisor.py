@@ -27,14 +27,30 @@ class Disciplina(models.Model):
     sequence_id = fields.Many2one('ir.sequence', string='Secuencia', readonly=True)
     sequence_generated = fields.Boolean(string='Secuencia Generada', default=False, readonly=True)
 
+<<<<<<< HEAD
+=======
+    company_id = fields.Many2one(
+        'res.company',
+        string="Empresa",
+        default=lambda self: self.env.company,
+        index=True,
+        help="Campo el cual relaciona el Servicio a una Empresa.",
+    )
+
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     def generate_sequence(self):
         for disciplina in self:
             if not disciplina.sequence_id:
                 prefix = disciplina.name[:3].upper()
                 sequence_vals = {
                     'name': f'Secuencia para {disciplina.name}',
+<<<<<<< HEAD
                     'code': f'INNPEND{prefix}',
                     'prefix': f'INNPEND{prefix}',
+=======
+                    'code': f'PEND{prefix}',
+                    'prefix': f'PEND{prefix}',
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                     'suffix': '/%(year)s',  # Sufijo con el año actual
                     'padding': 4,
                     'company_id': False,
@@ -50,6 +66,7 @@ class Disciplina(models.Model):
             if len(disciplina.name) < 3:
                 raise ValidationError(_('El nombre de la disciplina debe tener al menos 3 caracteres.'))
 
+<<<<<<< HEAD
     @api.model
     def create(self, vals):
         disciplina = super(Disciplina, self).create(vals)
@@ -67,6 +84,25 @@ class Disciplina(models.Model):
         disciplina.sequence_generated = True
         
         return disciplina
+=======
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        for record in records:
+            prefix = record.name[:3].upper()
+            sequence_vals = {
+                'name': f'Secuencia para {record.name}',
+                'code': f'PEND{prefix}',
+                'prefix': f'PEND{prefix}',
+                'suffix': '/%(year)s',  # Sufijo con el año actual
+                'padding': 4,
+                'company_id': False,
+            }
+            sequence = self.env['ir.sequence'].create(sequence_vals)
+            record.sequence_id = sequence
+            record.sequence_generated = True
+        return records
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
         
 class License(models.Model):
     _name = 'license.license'

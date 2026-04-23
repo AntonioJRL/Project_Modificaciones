@@ -256,6 +256,10 @@ Omae wa mō shindeiru                                           <field name="ser
                                 <button name="action_unlink_from_update"
                                     type="object"
                                     icon="fa-chain-broken"
+<<<<<<< HEAD
+=======
+                                    title="Desvincular avance"
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                                     help="Devuelve este avance al estado 'Confirmado' para reasignarlo."
                                     confirm="¿Estás seguro de que quieres desvincular esta línea de avance?"
                                     width="1px"

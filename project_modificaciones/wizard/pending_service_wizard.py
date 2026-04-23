@@ -41,13 +41,21 @@ class PendingServiceWizard(models.TransientModel):
         service = self.service_id
         project = service.supervisor_id.proyecto_supervisor
         report_date = self.date
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
         # 1. Buscar o Crear Project Update
         update = self.env['project.update'].search([
             ('project_id', '=', project.id),
             ('date', '=', report_date)
         ], limit=1)
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
         if not update:
             update = self.env['project.update'].create({
                 'project_id': project.id,
@@ -55,10 +63,16 @@ class PendingServiceWizard(models.TransientModel):
                 'status': 'on_track',
                 'date': report_date,
             })
+<<<<<<< HEAD
 
         count_created = 0
 
         vals_list = []
+=======
+            
+        count_created = 0
+        
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
         # 2. Iterar sobre las líneas del WIZARD
         for w_line in self.wizard_line_ids:
             # Solo procesar si la cantidad a reportar es mayor a 0
@@ -71,6 +85,12 @@ class PendingServiceWizard(models.TransientModel):
                     w_line.quantity_to_report, w_line.product_id.name, w_line.quantity_available))
 
             # Verificar duplicados en ese update (usando la cantidad del reporte)
+<<<<<<< HEAD
+=======
+            # Nota: Si mandan 2 avances parciales de la misma tarea el mismo día con misma cantidad, esto lo bloquearía.
+            # Quizás deberíamos relajar esto o validar mejor. 
+            # Por ahora mantenemos la lógica pero con quantity_to_report.
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
             domain_exist = [
                 ('update_id', '=', update.id),
                 ('task_id', '=', w_line.task_id.id),
@@ -83,11 +103,19 @@ class PendingServiceWizard(models.TransientModel):
             vals = {
                 'update_id': update.id,
                 'project_id': project.id,
+<<<<<<< HEAD
                 'sale_order_id': w_line.task_id.sale_order_id.id,
                 'task_id': w_line.task_id.id,
                 'date': report_date,
                 'producto': w_line.product_id.id,
                 'unit_progress': w_line.quantity_to_report,  # Usamos la cantidad editada
+=======
+                'sale_order_id': w_line.task_id.sale_order_id.id, 
+                'task_id': w_line.task_id.id,
+                'date': report_date,
+                'producto': w_line.product_id.id,
+                'unit_progress': w_line.quantity_to_report, # Usamos la cantidad editada
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                 'responsible_id': service.supervisor_id.id,
                 'supervisorplanta': service.supervisor_planta_id.id,
                 'planta': service.planta_centro.id,
@@ -96,6 +124,7 @@ class PendingServiceWizard(models.TransientModel):
                 'avances_state': 'draft',
                 'notas': f"Generado desde {service.name}",
             }
+<<<<<<< HEAD
             vals_list.append(vals)
 
         if vals_list:
@@ -105,6 +134,13 @@ class PendingServiceWizard(models.TransientModel):
         if count_created == 0:
             raise UserError(
                 _("Debe ingresar una cantidad mayor a 0 en al menos una línea para registrar un avance."))
+=======
+            self.env['project.sub.update'].create(vals)
+            count_created += 1
+            
+        if count_created == 0:
+            raise UserError(_("Debe ingresar una cantidad mayor a 0 en al menos una línea para registrar un avance."))
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
 
         return {
             'type': 'ir.actions.act_window',
@@ -112,7 +148,11 @@ class PendingServiceWizard(models.TransientModel):
             'res_model': 'project.update',
             'res_id': update.id,
             'view_mode': 'form',
+<<<<<<< HEAD
             'target': 'current',
+=======
+            'target': 'current', 
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
         }
 
 class PendingServiceWizardLine(models.TransientModel):

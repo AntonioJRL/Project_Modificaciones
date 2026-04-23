@@ -12,7 +12,11 @@ class SaleLine(models.Model):
     # -------------------------------------------------------------------------
 
     task_id = fields.Many2one(
+<<<<<<< HEAD
         "project.task", "Tarea", domain="[('sale_line_id', '=', id)]"
+=======
+        "project.task", "Tarea", domain="[('sale_line_id', '=', id)]", index=True
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
     )
 
     pending_line_id = fields.Many2one(

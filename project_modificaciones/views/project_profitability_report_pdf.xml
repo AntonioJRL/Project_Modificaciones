@@ -521,8 +521,12 @@
                                     <span class="rpt-doc-count-num" style="color:#0d47a1;">
                                         <t t-esc="kpi_counts['compensations']" />
                                     </span>
+<<<<<<< HEAD
                                     <span class="rpt-doc-count-lbl" style="color:#0d47a1;">
                                         Compensaciones</span>
+=======
+                                    <span class="rpt-doc-count-lbl" style="color:#0d47a1;">Compensaciones</span>
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                                 </div>
                                 <div class="rpt-doc-count-cell">
                                     <span class="rpt-doc-count-num">

@@ -11,7 +11,11 @@
                 <xpath expr="//form[1]/sheet[1]/group[1]/group[1]/field[@name='company_id']"
                     position="after">
                     <field name="supervisa" string="Supervisa Trabajos" widget="boolean_toggle"
+<<<<<<< HEAD
                         groups="base.group_system" />
+=======
+                        groups="base.group_system" title="Indica si este empleado puede supervisar tareas en campo" />
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                 </xpath>
             </data>
         </field>
@@ -27,12 +31,17 @@
 
                     <button name="action_confirmado_avances" type="object" string="Confirmar Avance"
                         class="oe_highlight" invisible="avances_state != 'draft'"
+<<<<<<< HEAD
                         icon="fa-check"
+=======
+                        title="Confirmar este avance para su asignación al proyecto"
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                         groups="project_modificaciones.group_botones_avance" />
 
                     <button name="action_revert_avances_to_draft" type="object"
                         string="Revertir a Borrador" class="btn-secondary"
                         invisible="avances_state == 'draft'"
+<<<<<<< HEAD
                         icon="fa-undo"
                         groups="project_modificaciones.group_boton_borrador_avance" />
 
@@ -65,6 +74,35 @@
                     <button name="action_mark_incobrable" type="object"
                         string="Marcar como incobrable" class="btn-secondary" icon="fa-ban"
                         title="Marcar como incobrable"
+=======
+                        title="Regresar este avance al estado borrador para su edición"
+                        groups="project_modificaciones.group_boton_borrador_avance" />
+
+                    <button name="toggle_asignar_avance" string="Asignar Avance" type="object"
+                        class="oe_highlight"
+                        title="Habilitar la edición de campos de asignación a proyecto y tarea"
+                        invisible="asignar_avance or avances_state in ['assigned']"
+                        groups="project_modificaciones.group_botones_avance" />
+
+                    <button name="toggle_asignar_avance" string="No Asignar Avance" type="object"
+                        title="Deshabilitar la edición de campos de asignación"
+                        invisible="not asignar_avance"
+                        groups="project_modificaciones.group_botones_avance" />
+
+                    <button name="action_mark_invoiced" type="object"
+                        string="Marcar como facturado" class="btn-success" icon="fa-check"
+                        title="Marcar este avance como facturado manualmente"
+                        invisible="state == 'fact'"
+                        groups="project_modificaciones.group_sub_update_mark_invoiced" />
+                    <button name="action_mark_not_invoiced" type="object"
+                        string="Marcar como no facturado" class="btn-danger" icon="fa-times"
+                        title="Marcar este avance como pendiente de facturar"
+                        invisible="state == 'no_fact'"
+                        groups="project_modificaciones.group_sub_update_mark_invoiced" />
+                    <button name="action_mark_incobrable" type="object"
+                        string="Marcar como incobrable" class="btn-mutted" icon="fa-times"
+                        title="Marcar este avance como no cobrable"
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                         groups="project_modificaciones.group_sub_update_mark_invoiced" />
                 </header>
                 <sheet>
@@ -103,6 +141,7 @@
                     </style>
                     <div class="oe_button_box" name="button_box">
                         <button name="action_view_pending_service"
+<<<<<<< HEAD
                             type="object"
                             class="oe_stat_button"
                             icon="fa-ticket"
@@ -117,6 +156,19 @@
                         <field name="state" readonly="1" widget="badge"
                             decoration-success="state == 'fact'"
                             decoration-danger="state == 'no_fact'" />
+=======
+                                type="object"
+                                class="oe_stat_button"
+                                icon="fa-ticket"
+                                title="Ver servicio pendiente relacionado"
+                                invisible="pending_service_count == 0">
+                            <field name="pending_service_count" widget="statinfo" string="Pendiente"/>
+                        </button>
+                    </div>
+                    <div class="float-end fs-6 border-0">
+                        <field name="serv_assig" class="me-1" widget="badge" decoration-muted="serv_assig == 'no_assig'" decoration-primary="serv_assig == 'asigg'" field_id="serv_assig_0"/>
+                        <field name="state" readonly="1"  widget="badge" decoration-success="state == 'fact'" decoration-danger="state == 'no_fact'"/>
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                     </div>
                     <field name="cliente" invisible="1" />
                     <field name="asignar_avance" invisible="1" />
@@ -239,7 +291,11 @@
                             <field name="estado" invisible="1" />
                             <field name="virtual_quant_progress" string="Unidades entregadas"
                                 digits="[12,4]" />
+<<<<<<< HEAD
                             <field name="sale_current" />
+=======
+                            <field name="sale_current" widget="monetary"/>
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                         </group>
                         <group>
                             <field name="quant_total" string="Unidades a entregar" widget="float"
@@ -250,7 +306,11 @@
                     </group>
                     <group>
                         <group>
+<<<<<<< HEAD
                             <field name="costo_avance_formateado" />
+=======
+                            <field name="costo_avance_formateado" invisible="1"/>
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                         </group>
                     </group>
                     <!-- Campos de dominio eliminados para evitar problemas con IDs inválidos -->
@@ -258,19 +318,33 @@
                     <separator string="Estado de la facturacion" />
                     <group>
                         <group>
+<<<<<<< HEAD
                             <field name="bitacorapmv" readonly="avances_state in 'assigned'" />
                             <field name="estimado" readonly="avances_state in 'assigned'" />
                             <field name="datefact" readonly="avances_state in 'assigned'" />
+=======
+                            <field name="bitacorapmv"/>
+                            <field name="estimado"/>
+                            <field name="datefact"/>
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                             <field name="is_invoiced" invisible="1" />
                             <field name="sale_total" />
                             <field name="pending_service_id" groups="base.group_system" />
                         </group>
                         <group>
+<<<<<<< HEAD
                             <field name="om" readonly="avances_state in 'assigned'" />
                             <field name="cotizacion" readonly="avances_state in 'assigned'" />
                             <field name="avanceparc" readonly="avances_state in 'assigned'" />
                             <field name="factura" options="{'no_edit': True, 'no_create': True}"
                                 readonly="avances_state in 'assigned'" />
+=======
+                            <field name="om"/>
+                            <field name="numlic"/>
+                            <field name="cotizacion"/>
+                            <field name="avanceparc"/>
+                            <field name="factura" options="{'no_edit': True, 'no_create': True}" />
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                             <field name="sale_actual" />
                             <field name="sale_missing" />
                         </group>
@@ -289,8 +363,12 @@
                                 invisible="1" />
                         </group>
                         <group>
+<<<<<<< HEAD
                             <!--<field
                             name="created_by" widget="many2one_avatar_user"
+=======
+                            <!--<field name="created_by" widget="many2one_avatar_user"
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                                 options="{'no_create': True}" />-->
                             <field name="is_avance_preliminar" widget="boolean_toggle" readonly="1"
                                 invisible="1" />
@@ -311,7 +389,11 @@
         <field name="name">project.sub.update.view.tree</field>
         <field name="model">project.sub.update</field>
         <field name="arch" type="xml">
+<<<<<<< HEAD
             <tree class="o_sale_order" string="Avances físicos" default_order="date asc">
+=======
+            <tree class="o_sale_order" string="Avances físicos" multi_edit="1" default_order="date asc">
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                 <header>
                     <button name="action_confirmado_avances" type="object" string="Confirmar Avance"
                         class="oe_highlight" groups="project_modificaciones.group_botones_avance" />
@@ -349,11 +431,19 @@
                 <field name="producto" optional="hide" />
                 <field name="unit_progress" widget="float" digits="[12,4]" optional="show" />
                 <field name="currency_id" invisible="1" optional="hide" />
+<<<<<<< HEAD
                 <field name="costo_avance" widget="monetary" sum="Costo Total" optional="show"
                     options="{'currency_field': 'currency_id'}" />
                 <field name="hora_inicio" widget="datetime" optional="hide" />
                 <field name="hora_termino" widget="datetime" optional="hide" />
                 <field name="sale_current" sum="Total" optional="hide" />
+=======
+                <field name="costo_avance" widget="monetary" sum="Costo Total" optional="hide"
+                    options="{'currency_field': 'currency_id'}" />
+                <field name="hora_inicio" widget="datetime" optional="hide" />
+                <field name="hora_termino" widget="datetime" optional="hide" />
+                <field name="sale_current" sum="Total" optional="show" />
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                 <field name="created_by" optional="hide" widget="many2one_avatar_user"
                     string="Capturado Por" />
                 <field name="write_date" optional="hide" />
@@ -458,6 +548,10 @@
                 </group>
                 <field name="name" />
                 <field name="om" string="OM" filter_domain="[('om', 'ilike', self)]" />
+<<<<<<< HEAD
+=======
+                <field name="numlic" string="#Bitacora" filter_domain="[('numlic', 'ilike', self)]" />
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                 <field name="project_id" />
                 <field name="task_id" filter_domain="[('task_id', '=', self)]" />
                 <field name="responsible_id" string="Responsable"
@@ -487,4 +581,9 @@
             </p>
         </field>
     </record>
+<<<<<<< HEAD
 </odoo>
+=======
+
+</odoo>
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)

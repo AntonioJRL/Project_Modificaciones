@@ -59,7 +59,11 @@ class ProjectProfitabilityReport(models.TransientModel):
     filter_type = fields.Selection([
         ('all', 'Todas las Tareas'),
         ('filter', 'Selección Manual'),
+<<<<<<< HEAD
     ], string='Tareas', default='all', required=True)
+=======
+    ], string='Filtro de Tareas', default='all', required=True)
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
 
     task_ids = fields.Many2many(
         'project.task',
@@ -2596,4 +2600,8 @@ class ProjectProfitabilityReportPDF(models.AbstractModel):
             'stock_moves_list': wizard._prepare_stock_display_data(),
             'invoices_list':    wizard._prepare_invoice_display_data(),
             'fmt': fmt,
+<<<<<<< HEAD
         }
+=======
+        }
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)

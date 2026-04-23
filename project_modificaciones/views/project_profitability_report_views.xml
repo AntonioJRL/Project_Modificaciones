@@ -98,7 +98,11 @@
 
                         <!-- Cápsula: Cliente  -->
                         <div class="rp-capsule">
+<<<<<<< HEAD
                             <i class="fa fa-user-o" />
+=======
+                            <i class="fa fa-user-o" title="Filtro por Cliente"/>
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                             <field name="partner_filter_ids"
                                 widget="many2many_tags"
                                 nolabel="1"
@@ -110,7 +114,11 @@
 
                         <!-- Cápsula: Ubicaciones -->
                         <div class="rp-capsule">
+<<<<<<< HEAD
                             <i class="fa fa-map-marker" />
+=======
+                            <i class="fa fa-map-marker" title="Filtro por Ubicación"/>
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                             <field name="ubicacion_ids"
                                 widget="many2many_tags"
                                 nolabel="1"
@@ -122,14 +130,22 @@
 
                         <!-- Cápsula: Proyectos -->
                         <div class="rp-capsule">
+<<<<<<< HEAD
                             <i class="fa fa-building-o" />
+=======
+                            <i class="fa fa-building-o" title="Filtro por Proyecto"/>
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                             <field name="project_ids"
                                 widget="many2many_tags"
                                 nolabel="1"
                                 placeholder="Proyectos…"
                                 options="{'no_create': True}"
                                 force_save="1"
+<<<<<<< HEAD
                                 domain="[('is_proyecto_obra', '=', True)] + ([('ubicacion', 'in', ubicacion_ids)] if ubicacion_ids else []) + ([('partner_id', 'in', partner_filter_ids)] if partner_filter_ids else [])"
+=======
+                                domain="[('is_proyecto_obra', '=', True)]"
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                                 class="flex-grow-1" />
                         </div>
 
@@ -144,7 +160,11 @@
                             type="object"
                             class="rp-btn-recalc btn"
                             help="Actualiza los valores del tablero.">
+<<<<<<< HEAD
                             <i class="fa fa-refresh" /> Recalcular </button>
+=======
+                            <i class="fa fa-refresh" title="Recalcular"/> Recalcular </button>
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
 
                         <!-- Botón Imprimir PDF -->
                         <button name="action_print_report"
@@ -156,7 +176,11 @@
                                    font-weight:600 !important; white-space:nowrap !important;
                                    flex-shrink:0 !important;"
                             help="Genera el reporte PDF ejecutivo del proyecto.">
+<<<<<<< HEAD
                             <i class="fa fa-file-pdf-o" /> Imprimir PDF </button>
+=======
+                            <i class="fa fa-file-pdf-o" title="Imprimir PDF"/> Imprimir PDF </button>
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
 
                     </div>
 
@@ -165,7 +189,11 @@
 
                         <!-- Cápsula: Tipo de Tareas -->
                         <div class="rp-capsule rp-capsule-radio">
+<<<<<<< HEAD
                             <i class="fa fa-tasks" style="color:#9aa3af;" />
+=======
+                            <i class="fa fa-tasks" style="color:#9aa3af;" title="Tipo de Tareas"/>
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                             <field name="filter_type" invisible="1" />
                             <div class="rp-seg-wrap">
                                 <button name="action_set_filter_type" type="object"
@@ -190,7 +218,11 @@
                         <!-- Cápsula: Estado de Tareas (oculta en modo manual) -->
                         <div class="rp-capsule rp-capsule-radio"
                             invisible="filter_type == 'filter'">
+<<<<<<< HEAD
                             <i class="fa fa-flag-o" style="color:#9aa3af;" />
+=======
+                            <i class="fa fa-flag-o" style="color:#9aa3af;" title="Estado de Tareas"/>
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                             <field name="task_state_filter" invisible="1" />
                             <div class="rp-seg-wrap" style="flex-wrap:wrap;">
                                 <button name="action_set_task_state_filter" type="object"
@@ -254,7 +286,11 @@
 
                         <!-- Cápsula: Periodo (posición original: entre Estado y Vista) -->
                         <div class="rp-capsule rp-capsule-radio">
+<<<<<<< HEAD
                             <i class="fa fa-calendar-o" style="color:#9aa3af;" />
+=======
+                            <i class="fa fa-calendar-o" style="color:#9aa3af;" title="Periodo"/>
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                             <field name="date_filter_type" invisible="1" />
                             <div class="rp-seg-wrap">
                                 <button name="action_set_date_filter_type" type="object"
@@ -302,7 +338,11 @@
 
                         <!-- Cápsula: Vista / Gráfico -->
                         <div class="rp-capsule rp-capsule-radio">
+<<<<<<< HEAD
                             <i class="fa fa-bar-chart" style="color:#9aa3af;" />
+=======
+                            <i class="fa fa-bar-chart" style="color:#9aa3af;" title="Tipo de Gráfico"/>
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                             <field name="chart_type" invisible="1" />
                             <div class="rp-seg-wrap">
                                 <button name="action_set_chart_type" type="object"
@@ -417,7 +457,11 @@
                             style="cursor: pointer;"
                             aria-label="Tareas vinculadas al proyecto según los filtros activos. Haz clic para ver el listado completo.">
                             <div class="kpi-icon-wrapper">
+<<<<<<< HEAD
                                 <i class="fa fa-tasks" />
+=======
+                                <i class="fa fa-tasks" title="Tareas" />
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                             </div>
                             <div class="kpi-content">
                                 <div class="kpi-value">
@@ -433,7 +477,11 @@
                             style="cursor: pointer;"
                             aria-label="Avances físicos (project.sub.update) registrados para las tareas filtradas. Reflejan el progreso real en campo. Haz clic para ver el detalle.">
                             <div class="kpi-icon-wrapper">
+<<<<<<< HEAD
                                 <i class="fa fa-bar-chart" />
+=======
+                                <i class="fa fa-bar-chart" title="Gráfico" />
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                             </div>
                             <div class="kpi-content">
                                 <div class="kpi-value">
@@ -449,7 +497,11 @@
                             style="cursor: pointer;"
                             aria-label="Órdenes de Venta confirmadas (sale/done) relacionadas al proyecto. El monto suma el price_subtotal de cada línea. Haz clic para ver el detalle.">
                             <div class="kpi-icon-wrapper">
+<<<<<<< HEAD
                                 <i class="fa fa-dollar" />
+=======
+                                <i class="fa fa-dollar" title="Costo" />
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                             </div>
                             <div class="kpi-content">
                                 <div class="kpi-value">
@@ -465,7 +517,11 @@
                             style="cursor: pointer;"
                             aria-label="Órdenes de Compra en estado purchase/done vinculadas al proyecto por project_id o cuenta analítica. Haz clic para ver el detalle.">
                             <div class="kpi-icon-wrapper">
+<<<<<<< HEAD
                                 <i class="fa fa-shopping-cart" />
+=======
+                                <i class="fa fa-shopping-cart" title="Compras" />
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                             </div>
                             <div class="kpi-content">
                                 <div class="kpi-value">
@@ -482,7 +538,11 @@
                             style="cursor: pointer; background: #e0f2f1; color: #00695c;">
                             <div class="kpi-icon-wrapper"
                                 style="background: rgba(0, 105, 92, 0.1); color: #00695c;">
+<<<<<<< HEAD
                                 <i class="fa fa-credit-card" />
+=======
+                                <i class="fa fa-credit-card" title="Pagos" />
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                             </div>
                             <div class="kpi-content">
                                 <div class="kpi-value" style="color: #00695c;">
@@ -499,7 +559,11 @@
                             style="cursor: pointer; background: #f3e5f5; color: #7b1fa2;">
                             <div class="kpi-icon-wrapper"
                                 style="background: rgba(123, 31, 162, 0.1); color: #7b1fa2;">
+<<<<<<< HEAD
                                 <i class="fa fa-list-alt" />
+=======
+                                <i class="fa fa-list-alt" title="Detalle" />
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                             </div>
                             <div class="kpi-content">
                                 <div class="kpi-value" style="color: #7b1fa2;">
@@ -516,7 +580,11 @@
                             style="cursor: pointer; background: #ffebee; color: #c62828;">
                             <div class="kpi-icon-wrapper"
                                 style="background: rgba(198, 40, 40, 0.1); color: #c62828;">
+<<<<<<< HEAD
                                 <i class="fa fa-cubes" />
+=======
+                                <i class="fa fa-cubes" title="Materiales" />
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                             </div>
                             <div class="kpi-content">
                                 <div class="kpi-value" style="color: #c62828;">
@@ -532,7 +600,11 @@
                             style="cursor: pointer;"
                             aria-label="Horas registradas en hojas de tiempo (timesheets) para las tareas del proyecto. Haz clic para ver el detalle.">
                             <div class="kpi-icon-wrapper">
+<<<<<<< HEAD
                                 <i class="fa fa-clock-o" />
+=======
+                                <i class="fa fa-clock-o" title="Mano de Obra" />
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                             </div>
                             <div class="kpi-content">
                                 <div class="kpi-value">
@@ -549,7 +621,11 @@
                             aria-label="Compensaciones económicas registradas para el equipo asignado al proyecto. Haz clic para ver el detalle.">
                             <div class="kpi-icon-wrapper"
                                 style="background: rgba(13, 71, 161, 0.1); color: #0d47a1;">
+<<<<<<< HEAD
                                 <i class="fa fa-money" />
+=======
+                                <i class="fa fa-money" title="Gastos" />
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                             </div>
                             <div class="kpi-content">
                                 <div class="kpi-value" style="color: #0d47a1;">
@@ -565,7 +641,11 @@
                             style="cursor: pointer;"
                             aria-label="Facturas de cliente (out_invoice) validadas generadas a partir de las Órdenes de Venta. El monto refleja lo realmente facturado. Haz clic para ver el detalle.">
                             <div class="kpi-icon-wrapper">
+<<<<<<< HEAD
                                 <i class="fa fa-file-text-o" />
+=======
+                                <i class="fa fa-file-text-o" title="Facturas" />
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                             </div>
                             <div class="kpi-content">
                                 <div class="kpi-value">
@@ -1068,7 +1148,11 @@
                 <t
                     t-if="not purchases_list and not timesheets_list and not expenses_list and not stock_moves_list">
                     <div
+<<<<<<< HEAD
                         class="alert alert-light border d-flex align-items-center justify-content-between mt-4 px-4 py-3 rounded-3">
+=======
+                        class="alert alert-light border d-flex align-items-center justify-content-between mt-4 px-4 py-3 rounded-3" role="alert">
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
                         <div>
                             <i class="fa fa-table me-2 text-secondary" />
                             <strong>Tablas de detalle no cargadas.</strong>
@@ -1447,4 +1531,8 @@
 
         </div>
     </template>
+<<<<<<< HEAD
 </odoo>
+=======
+</odoo>
+>>>>>>> 9d09621 (Vista Unificada Gestion de Proyectos y Fusion de servicios pendientes.)
